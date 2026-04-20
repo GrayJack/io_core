@@ -1,8 +1,9 @@
 [package]
 name = "io_core"
 version = "0.1.0"
-authors = ["Eric Shimizu Karbstein <gr41.j4ck@gmail.com>"]
+license = "MIT OR Apache-2.0"
 edition = "2024"
+exclude = ["todo.md"]
 
 [dependencies]
 memchr = { version = "2.8.0", default-features = false }
@@ -10,7 +11,7 @@ memchr = { version = "2.8.0", default-features = false }
 [features]
 default = []
 alloc = []
-std = []
+std = ["alloc"]
 
 # use nightly features
 nightly = []
