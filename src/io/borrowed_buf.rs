@@ -71,6 +71,31 @@ impl<'data> From<&'data mut [MaybeUninit<u8>]> for BorrowedBuf<'data> {
     }
 }
 
+/// Creates a new `BorrowedBuf` from a fully initialized array.
+impl<'data, const N: usize> From<&'data mut [u8; N]> for BorrowedBuf<'data> {
+    #[inline]
+    fn from(array: &'data mut [u8; N]) -> BorrowedBuf<'data> {
+        BorrowedBuf {
+            // SAFETY: initialized data never becoming uninitialized is an invariant of BorrowedBuf
+            buf: unsafe { &mut *(array as *mut [u8] as *mut [MaybeUninit<u8>]) },
+            filled: 0,
+            init: true,
+        }
+    }
+}
+
+/// Creates a new `BorrowedBuf` from an uninitialized buffer array.
+impl<'data, const N: usize> From<&'data mut [MaybeUninit<u8>; N]> for BorrowedBuf<'data> {
+    #[inline]
+    fn from(buf: &'data mut [MaybeUninit<u8>; N]) -> BorrowedBuf<'data> {
+        BorrowedBuf {
+            buf,
+            filled: 0,
+            init: false,
+        }
+    }
+}
+
 /// Creates a new `BorrowedBuf` from a cursor.
 ///
 /// Use `BorrowedCursor::with_unfilled_buf` instead for a safer alternative.
