@@ -184,11 +184,11 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
         struct BufGuard<'a> {
             buffer: &'a mut [u8],
             written: usize,
-            len: usize,
+            len: &'a mut usize,
         }
 
         impl<'a> BufGuard<'a> {
-            fn new(buffer: &'a mut [u8], len: usize) -> Self {
+            fn new(buffer: &'a mut [u8], len: &'a mut usize) -> Self {
                 Self {
                     buffer,
                     written: 0,
@@ -198,7 +198,7 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
 
             /// The unwritten part of the buffer
             fn remaining(&self) -> &[u8] {
-                &self.buffer[self.written..self.len]
+                &self.buffer[self.written..*self.len]
             }
 
             /// Flag some bytes as removed from the front of the buffer
@@ -208,22 +208,23 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
 
             /// true if all of the bytes have been written
             fn done(&self) -> bool {
-                self.written >= self.len
+                self.written >= *self.len
             }
         }
 
         impl Drop for BufGuard<'_> {
             fn drop(&mut self) {
                 if self.written > 0 {
-                    let remaining = self.len - self.written;
+                    let remaining = *self.len - self.written;
                     if remaining > 0 {
-                        self.buffer.copy_within(self.written..self.len, 0);
+                        self.buffer.copy_within(self.written..*self.len, 0);
                     }
+                    *self.len = remaining;
                 }
             }
         }
 
-        let mut guard = BufGuard::new(&mut self.buf, self.len);
+        let mut guard = BufGuard::new(&mut self.buf, &mut self.len);
         while !guard.done() {
             self.panicked = true;
             let r = self.inner.write(guard.remaining());
@@ -231,7 +232,7 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
 
             match r {
                 Ok(0) => {
-                    return Err(crate::const_error!(
+                    return Err(crate::io_const_error!(
                         ErrorKind::WriteZero,
                         "failed to write the buffered data",
                     ));
@@ -241,7 +242,6 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
                 Err(e) => return Err(e),
             }
         }
-        self.len -= guard.written;
         Ok(())
     }
 
