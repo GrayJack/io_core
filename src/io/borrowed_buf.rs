@@ -473,6 +473,47 @@ impl<'data> From<&'data mut [MaybeUninit<u8>]> for TrackingBorrowedBuf<'data> {
     }
 }
 
+/// Creates a new `TrackingBorrowedBuf` from a fully initialized array.
+impl<'data, const N: usize> From<&'data mut [u8; N]> for TrackingBorrowedBuf<'data> {
+    #[inline]
+    fn from(array: &'data mut [u8; N]) -> TrackingBorrowedBuf<'data> {
+        TrackingBorrowedBuf {
+            // SAFETY: initialized data never becoming uninitialized is an invariant of BorrowedBuf
+            buf: unsafe { &mut *(array as *mut [u8] as *mut [MaybeUninit<u8>]) },
+            filled: 0,
+            init: N,
+        }
+    }
+}
+
+/// Creates a new `TrackingBorrowedBuf` from an uninitialized buffer array.
+impl<'data, const N: usize> From<&'data mut [MaybeUninit<u8>; N]> for TrackingBorrowedBuf<'data> {
+    #[inline]
+    fn from(buf: &'data mut [MaybeUninit<u8>; N]) -> TrackingBorrowedBuf<'data> {
+        TrackingBorrowedBuf {
+            buf,
+            filled: 0,
+            init: 0,
+        }
+    }
+}
+
+/// Creates a new `TrackingBorrowedBuf` from a cursor.
+///
+/// Use `TrackingBorrowedCursor::with_unfilled_buf` instead for a safer alternative.
+impl<'data> From<TrackingBorrowedCursor<'data>> for TrackingBorrowedBuf<'data> {
+    #[inline]
+    fn from(buf: TrackingBorrowedCursor<'data>) -> TrackingBorrowedBuf<'data> {
+        TrackingBorrowedBuf {
+            // SAFETY: no initialized byte is ever uninitialized as per
+            // `BorrowedBuf`'s invariant
+            buf: unsafe { buf.buf.buf.get_unchecked_mut(buf.buf.filled..) },
+            filled: 0,
+            init: buf.buf.init,
+        }
+    }
+}
+
 impl<'data> TrackingBorrowedBuf<'data> {
     /// Returns the total capacity of the buffer.
     #[inline]
