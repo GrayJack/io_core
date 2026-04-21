@@ -197,7 +197,8 @@ fn test_buffered_reader_stream_position_panic() {
     let inner = reader.get_mut();
     assert!(inner.seek(SeekFrom::Start(0)).is_ok());
     // overflow when subtracting the remaining buffer size from current position
-    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| reader.stream_position().ok()));
+    let result =
+        std::panic::catch_unwind(panic::AssertUnwindSafe(|| reader.stream_position().ok()));
     assert!(result.is_err());
 }
 
@@ -515,7 +516,7 @@ fn dont_panic_in_drop_on_panicked_flush() {
     }
 
     let writer = FailFlushWriter;
-    let _writer = BufWriter::new(writer);
+    let _writer = ArrayBufWriter::<_, 1024>::new(writer);
 
     // If writer panics *again* due to the flush error then the process will
     // abort.
@@ -542,7 +543,7 @@ fn panic_in_write_doesnt_flush_in_drop() {
     }
 
     thread::spawn(|| {
-        let mut writer = BufWriter::new(PanicWriter);
+        let mut writer = ArrayBufWriter::<_, 1024>::new(PanicWriter);
         let _ = writer.write(b"hello world");
         let _ = writer.flush();
     })

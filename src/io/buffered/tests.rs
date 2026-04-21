@@ -195,7 +195,8 @@ fn test_buffered_reader_stream_position_panic() {
     let inner = reader.get_mut();
     assert!(inner.seek(SeekFrom::Start(0)).is_ok());
     // overflow when subtracting the remaining buffer size from current position
-    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| reader.stream_position().ok()));
+    let result =
+        std::panic::catch_unwind(panic::AssertUnwindSafe(|| reader.stream_position().ok()));
     assert!(result.is_err());
 }
 

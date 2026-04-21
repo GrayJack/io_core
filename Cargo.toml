@@ -8,6 +8,9 @@ exclude = ["todo.md"]
 [dependencies]
 memchr = { version = "2.8.0", default-features = false }
 
+[target.'cfg(not(all(windows, target_env = "msvc")))'.dependencies]
+libc = { version = "0.2.185", default-features = false, features = [] }
+
 [features]
 default = []
 alloc = []
