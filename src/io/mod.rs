@@ -33,6 +33,7 @@ mod buffered;
 pub use buffered::{BufReader, BufWriter, LineWriter};
 
 mod pipe;
+pub use pipe::{pipe, PipeReader, PipeWriter};
 
 #[cfg(all(feature = "nightly", feature = "alloc"))]
 mod copy;
@@ -40,6 +41,9 @@ mod copy;
 pub use copy::copy;
 
 mod impls;
+
+#[cfg(any(test, feature = "std"))]
+mod std_impls;
 
 const DEFAULT_BUF_SIZE: usize = crate::sys::io::DEFAULT_BUF_SIZE;
 
