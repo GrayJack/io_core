@@ -5,6 +5,7 @@ license = "MIT OR Apache-2.0"
 edition = "2024"
 repository = "https://github.com/GrayJack/io_core"
 readme = "README.md"
+description = "A no_std I/O foundation for Rust."
 categories = ["data-structures", "no-std"]
 keywords = ["no_std", "io"]
 exclude = ["todo.md"]
