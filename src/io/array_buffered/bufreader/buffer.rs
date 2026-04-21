@@ -1,24 +1,22 @@
-//! An encapsulation of `BufReader`'s buffer management logic.
+//! An encapsulation of `ArrayBufReader`'s buffer management logic.
 //!
-//! This module factors out the basic functionality of `BufReader` in order to protect two core
+//! This module factors out the basic functionality of `ArrayBufReader` in order to protect two core
 //! invariants:
 //! - `filled` bytes of `buf` are always initialized
 //! - `pos` is always <= `filled`
 //!
 //! Since this module encapsulates the buffer management logic, we can ensure that the range
 //! `pos..filled` is always a valid index into the initialized region of the buffer. This means
-//! that user code which wants to do reads from a `BufReader` via `buffer` + `consume` can do so
+//! that user code which wants to do reads from a `ArrayBufReader` via `buffer` + `consume` can do so
 //! without encountering any runtime bounds checks.
 
 use core::{cmp, mem::MaybeUninit};
 
-use alloc::boxed::Box;
-
 use crate::io::{self, BorrowedBuf, ErrorKind, Read};
 
-pub struct Buffer {
+pub struct ArrayBuffer<const N: usize> {
     // The buffer.
-    buf: Box<[MaybeUninit<u8>]>,
+    buf: [MaybeUninit<u8>; N],
     // The current seek offset into `buf`, must always be <= `filled`.
     pos: usize,
     // Each call to `fill_buf` sets `filled` to indicate how many bytes at the start of `buf` are
@@ -32,32 +30,13 @@ pub struct Buffer {
     initialized: bool,
 }
 
-impl Buffer {
-    #[inline]
-    pub fn with_capacity(capacity: usize) -> Self {
-        let buf = Box::new_uninit_slice(capacity);
+impl<const N: usize> ArrayBuffer<N> {
+    pub const fn new() -> Self {
         Self {
-            buf,
+            buf: [MaybeUninit::uninit(); N],
             pos: 0,
             filled: 0,
             initialized: false,
-        }
-    }
-
-    #[inline]
-    #[cfg(feature = "nightly")]
-    pub fn try_with_capacity(capacity: usize) -> io::Result<Self> {
-        match Box::try_new_uninit_slice(capacity) {
-            Ok(buf) => Ok(Self {
-                buf,
-                pos: 0,
-                filled: 0,
-                initialized: false,
-            }),
-            Err(_) => Err(crate::const_error!(
-                ErrorKind::OutOfMemory,
-                "failed to allocate read buffer"
-            )),
         }
     }
 
@@ -69,8 +48,8 @@ impl Buffer {
     }
 
     #[inline]
-    pub fn capacity(&self) -> usize {
-        self.buf.len()
+    pub const fn capacity(&self) -> usize {
+        N
     }
 
     #[inline]
@@ -155,7 +134,7 @@ impl Buffer {
         if self.pos >= self.filled {
             debug_assert!(self.pos == self.filled);
 
-            let mut buf = BorrowedBuf::from(&mut *self.buf);
+            let mut buf = BorrowedBuf::from(&mut self.buf);
 
             if self.initialized {
                 // SAFETY: `self.initialized` is only set after `self.buf` was

@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${default}",
+                "target/include"
+            ],
+            "defines": [],
+            "macFrameworkPath": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c23",
+            "intelliSenseMode": "macos-clang-arm64",
+            "compilerArgs": [
+                "-std=c23",
+                "-nostdinc",
+                "-nostdlib",
+                "-isystem target/include",
+                "-D_DEBUG",
+                "-lSystem"
+            ]
+        }
+    ],
+    "version": 4
+}

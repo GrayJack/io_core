@@ -1,6 +1,6 @@
 use crate::io::{
-    self, BorrowedBuf, BufRead, BufReader, BufWriter, ErrorKind, IoSlice, LineWriter, Read, Seek,
-    SeekFrom, Write,
+    self, ArrayBufReader, ArrayBufWriter, ArrayLineWriter, BorrowedBuf, BufRead, ErrorKind,
+    IoSlice, Read, Seek, SeekFrom, Write,
 };
 use core::{
     mem::MaybeUninit,
@@ -21,6 +21,7 @@ use alloc::{
 use std::thread;
 
 /// A dummy reader intended at testing short-reads propagation.
+#[cfg(feature = "alloc")]
 pub struct ShortReader {
     lengths: Vec<usize>,
 }
@@ -28,6 +29,7 @@ pub struct ShortReader {
 // FIXME: rustfmt and tidy disagree about the correct formatting of this
 // function. This leads to issues for users with editors configured to
 // rustfmt-on-save.
+#[cfg(feature = "alloc")]
 impl Read for ShortReader {
     fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
         if self.lengths.is_empty() {
@@ -41,7 +43,7 @@ impl Read for ShortReader {
 #[test]
 fn test_buffered_reader() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(2, inner);
+    let mut reader = ArrayBufReader::<_, 2>::new(inner);
 
     let mut buf = [0, 0, 0];
     let nread = reader.read(&mut buf);
@@ -78,7 +80,7 @@ fn test_buffered_reader() {
 #[test]
 fn test_buffered_reader_read_buf() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(2, inner);
+    let mut reader = ArrayBufReader::<_, 2>::new(inner);
 
     let buf: &mut [_] = &mut [MaybeUninit::uninit(); 3];
     let mut buf: BorrowedBuf<'_> = buf.into();
@@ -127,7 +129,7 @@ fn test_buffered_reader_read_buf() {
 #[test]
 fn test_buffered_reader_seek() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(2, io::Cursor::new(inner));
+    let mut reader = ArrayBufReader::<_, 2>::new(io::Cursor::new(inner));
 
     assert_eq!(reader.seek(SeekFrom::Start(3)).ok(), Some(3));
     assert_eq!(reader.fill_buf().ok(), Some(&[0, 1][..]));
@@ -142,7 +144,7 @@ fn test_buffered_reader_seek() {
 #[test]
 fn test_buffered_reader_seek_relative() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(2, io::Cursor::new(inner));
+    let mut reader = ArrayBufReader::<_, 2>::new(io::Cursor::new(inner));
 
     assert!(reader.seek_relative(3).is_ok());
     assert_eq!(reader.fill_buf().ok(), Some(&[0, 1][..]));
@@ -159,7 +161,7 @@ fn test_buffered_reader_seek_relative() {
 #[test]
 fn test_buffered_reader_stream_position() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(2, io::Cursor::new(inner));
+    let mut reader = ArrayBufReader::<_, 2>::new(io::Cursor::new(inner));
 
     assert_eq!(reader.stream_position().ok(), Some(0));
     assert_eq!(reader.seek(SeekFrom::Start(3)).ok(), Some(3));
@@ -186,7 +188,7 @@ fn test_buffered_reader_stream_position() {
 #[cfg(feature = "std")]
 fn test_buffered_reader_stream_position_panic() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(4, io::Cursor::new(inner));
+    let mut reader = ArrayBufReader::<_, 4>::new(io::Cursor::new(inner));
 
     // cause internal buffer to be filled but read only partially
     let mut buffer = [0, 0];
@@ -202,7 +204,7 @@ fn test_buffered_reader_stream_position_panic() {
 #[test]
 fn test_buffered_reader_invalidated_after_read() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(3, io::Cursor::new(inner));
+    let mut reader = ArrayBufReader::<_, 3>::new(io::Cursor::new(inner));
 
     assert_eq!(reader.fill_buf().ok(), Some(&[5, 6, 7][..]));
     reader.consume(3);
@@ -220,7 +222,7 @@ fn test_buffered_reader_invalidated_after_read() {
 #[test]
 fn test_buffered_reader_invalidated_after_seek() {
     let inner: &[u8] = &[5, 6, 7, 0, 1, 2, 3, 4];
-    let mut reader = BufReader::with_capacity(3, io::Cursor::new(inner));
+    let mut reader = ArrayBufReader::<_, 3>::new(io::Cursor::new(inner));
 
     assert_eq!(reader.fill_buf().ok(), Some(&[5, 6, 7][..]));
     reader.consume(3);
@@ -269,7 +271,7 @@ fn test_buffered_reader_seek_underflow() {
         }
     }
 
-    let mut reader = BufReader::with_capacity(5, PositionReader { pos: 0 });
+    let mut reader = ArrayBufReader::<_, 5>::new(PositionReader { pos: 0 });
     assert_eq!(reader.fill_buf().ok(), Some(&[0, 1, 2, 3, 4][..]));
     assert_eq!(reader.seek(SeekFrom::End(-5)).ok(), Some(u64::MAX - 5));
     assert_eq!(reader.fill_buf().ok().map(|s| s.len()), Some(5));
@@ -302,12 +304,12 @@ fn test_buffered_reader_seek_underflow_discard_buffer_between_seeks() {
                 self.first_seek = false;
                 Ok(0)
             } else {
-                Err(io::Error::new(io::ErrorKind::Other, "oh no!"))
+                Err(crate::const_error!(io::ErrorKind::Other, "oh no!"))
             }
         }
     }
 
-    let mut reader = BufReader::with_capacity(5, ErrAfterFirstSeekReader { first_seek: true });
+    let mut reader = ArrayBufReader::<_, 5>::new(ErrAfterFirstSeekReader { first_seek: true });
     assert_eq!(reader.fill_buf().ok(), Some(&[0, 0, 0, 0, 0][..]));
 
     // The following seek will require two underlying seeks. The first will
@@ -318,9 +320,10 @@ fn test_buffered_reader_seek_underflow_discard_buffer_between_seeks() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_buffered_reader_read_to_end_consumes_buffer() {
     let data: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7];
-    let mut reader = BufReader::with_capacity(3, data);
+    let mut reader = ArrayBufReader::<_, 3>::new(data);
     let mut buf = Vec::new();
     assert_eq!(reader.fill_buf().ok(), Some(&[0, 1, 2][..]));
     assert_eq!(reader.read_to_end(&mut buf).ok(), Some(8));
@@ -329,9 +332,10 @@ fn test_buffered_reader_read_to_end_consumes_buffer() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_buffered_reader_read_to_string_consumes_buffer() {
     let data: &[u8] = "deadbeef".as_bytes();
-    let mut reader = BufReader::with_capacity(3, data);
+    let mut reader = ArrayBufReader::<_, 3>::new(data);
     let mut buf = String::new();
     assert_eq!(reader.fill_buf().ok(), Some("dea".as_bytes()));
     assert_eq!(reader.read_to_string(&mut buf).ok(), Some(8));
@@ -340,9 +344,10 @@ fn test_buffered_reader_read_to_string_consumes_buffer() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_buffered_writer() {
-    let inner = Vec::new();
-    let mut writer = BufWriter::with_capacity(2, inner);
+    let inner: Vec<u8> = Vec::new();
+    let mut writer = ArrayBufWriter::<_, 2>::new(inner);
 
     writer.write(&[0, 1]).unwrap();
     assert_eq!(writer.buffer(), []);
@@ -383,8 +388,9 @@ fn test_buffered_writer() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_buffered_writer_inner_flushes() {
-    let mut w = BufWriter::with_capacity(3, Vec::new());
+    let mut w = ArrayBufWriter::<_, 3>::new(Vec::new());
     w.write(&[0, 1]).unwrap();
     assert_eq!(*w.get_ref(), []);
     let w = w.into_inner().unwrap();
@@ -392,8 +398,9 @@ fn test_buffered_writer_inner_flushes() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_buffered_writer_seek() {
-    let mut w = BufWriter::with_capacity(3, io::Cursor::new(Vec::new()));
+    let mut w = ArrayBufWriter::<_, 3>::new(io::Cursor::new(Vec::new()));
     w.write_all(&[0, 1, 2, 3, 4, 5]).unwrap();
     w.write_all(&[6, 7]).unwrap();
     assert_eq!(w.stream_position().ok(), Some(8));
@@ -404,9 +411,10 @@ fn test_buffered_writer_seek() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_read_until() {
     let inner: &[u8] = &[0, 1, 2, 1, 0];
-    let mut reader = BufReader::with_capacity(2, inner);
+    let mut reader = ArrayBufReader::<_, 2>::new(inner);
     let mut v = Vec::new();
     reader.read_until(0, &mut v).unwrap();
     assert_eq!(v, [0]);
@@ -425,8 +433,9 @@ fn test_read_until() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_line_buffer() {
-    let mut writer = LineWriter::new(Vec::new());
+    let mut writer = ArrayLineWriter::<_, 100>::new(Vec::new());
     writer.write(&[0]).unwrap();
     assert_eq!(*writer.get_ref(), []);
     writer.write(&[1]).unwrap();
@@ -442,9 +451,10 @@ fn test_line_buffer() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_read_line() {
     let in_buf: &[u8] = b"a\nb\nc";
-    let mut reader = BufReader::with_capacity(2, in_buf);
+    let mut reader = ArrayBufReader::<_, 2>::new(in_buf);
     let mut s = String::new();
     reader.read_line(&mut s).unwrap();
     assert_eq!(s, "a\n");
@@ -463,7 +473,7 @@ fn test_read_line() {
 #[cfg(feature = "alloc")]
 fn test_lines() {
     let in_buf: &[u8] = b"a\nb\nc";
-    let reader = BufReader::with_capacity(2, in_buf);
+    let reader = ArrayBufReader::<_, 2>::new(in_buf);
     let mut it = reader.lines();
     assert_eq!(it.next().unwrap().unwrap(), "a".to_string());
     assert_eq!(it.next().unwrap().unwrap(), "b".to_string());
@@ -472,11 +482,12 @@ fn test_lines() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn test_short_reads() {
     let inner = ShortReader {
         lengths: vec![0, 1, 2, 0, 1, 0],
     };
-    let mut reader = BufReader::new(inner);
+    let mut reader: ArrayBufReader<_, 100> = ArrayBufReader::new(inner);
     let mut buf = [0, 0];
     assert_eq!(reader.read(&mut buf).unwrap(), 0);
     assert_eq!(reader.read(&mut buf).unwrap(), 1);
@@ -568,6 +579,7 @@ fn panic_in_write_doesnt_flush_in_drop() {
 /// `BufWriter` / etc, that can have its `write` & `flush` behavior
 /// configured
 #[derive(Default, Clone)]
+#[cfg(feature = "alloc")]
 struct ProgrammableSink {
     // Writes append to this slice
     pub buffer: Vec<u8>,
@@ -591,15 +603,16 @@ struct ProgrammableSink {
     pub error_after_max_writes: bool,
 }
 
+#[cfg(feature = "alloc")]
 impl Write for ProgrammableSink {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         if self.always_write_error {
-            return Err(io::Error::new(io::ErrorKind::Other, "test - always_write_error"));
+            return Err(crate::const_error!(io::ErrorKind::Other, "test - always_write_error"));
         }
 
         match self.max_writes {
             Some(0) if self.error_after_max_writes => {
-                return Err(io::Error::new(io::ErrorKind::Other, "test - max_writes"));
+                return Err(crate::const_error!(io::ErrorKind::Other, "test - max_writes"));
             },
             Some(0) => return Ok(0),
             Some(ref mut count) => *count -= 1,
@@ -619,7 +632,8 @@ impl Write for ProgrammableSink {
 
     fn flush(&mut self) -> io::Result<()> {
         if self.always_flush_error {
-            Err(io::Error::new(io::ErrorKind::Other, "test - always_flush_error"))
+            // Err(io::Error::new(io::ErrorKind::Other, "test - always_flush_error"));
+            Err(crate::const_error!(io::ErrorKind::Other, "test - always_flush_error"))
         } else {
             Ok(())
         }
@@ -636,6 +650,7 @@ impl Write for ProgrammableSink {
 ///
 /// Regression test for #37807
 #[test]
+#[cfg(feature = "alloc")]
 fn erroneous_flush_retried() {
     let writer = ProgrammableSink {
         // Only write up to 4 bytes at a time
@@ -650,7 +665,7 @@ fn erroneous_flush_retried() {
 
     // This should write the first 4 bytes. The rest will be buffered, out
     // to the last newline.
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
     assert_eq!(writer.write(b"a\nb\nc\nd\ne").unwrap(), 8);
 
     // This write should attempt to flush "c\nd\n", then buffer "e". No
@@ -661,8 +676,9 @@ fn erroneous_flush_retried() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn line_vectored() {
-    let mut a = LineWriter::new(Vec::new());
+    let mut a = ArrayLineWriter::<_, 1024>::new(Vec::new());
     assert_eq!(
         a.write_vectored(&[
             IoSlice::new(&[]),
@@ -761,7 +777,7 @@ fn line_vectored_partial_and_errors() {
     }
 
     // partial writes keep going
-    let mut a = LineWriter::new(Writer::default());
+    let mut a = ArrayLineWriter::<_, 1024>::new(Writer::default());
     a.write_vectored(&[IoSlice::new(&[]), IoSlice::new(b"abc")]).unwrap();
 
     a.get_mut().calls.push_back(Call::Write {
@@ -800,9 +816,10 @@ fn line_vectored_partial_and_errors() {
 /// LineWriter uses the normal `write` call, which more-correctly handles
 /// partial lines
 #[test]
+#[cfg(feature = "alloc")]
 fn line_vectored_ignored() {
     let writer = ProgrammableSink::default();
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
 
     let content = [
         IoSlice::new(&[]),
@@ -847,12 +864,13 @@ fn line_vectored_ignored() {
 ///
 /// This behavior is desirable because it prevents flushing partial lines
 #[test]
+#[cfg(feature = "alloc")]
 fn partial_write_buffers_line() {
     let writer = ProgrammableSink {
         accept_prefix: Some(13),
         ..Default::default()
     };
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
 
     assert_eq!(writer.write(b"Line 1\nLine 2\nLine 3\nLine4").unwrap(), 21);
     assert_eq!(&writer.get_ref().buffer, b"Line 1\nLine 2");
@@ -870,9 +888,10 @@ fn partial_write_buffers_line() {
 /// And given that the full write of lines 1 and 2 was successful
 /// That data up to Line 3 is buffered
 #[test]
+#[cfg(feature = "alloc")]
 fn partial_line_buffered_after_line_write() {
     let writer = ProgrammableSink::default();
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
 
     assert_eq!(writer.write(b"Line 1\nLine 2\nLine 3").unwrap(), 20);
     assert_eq!(&writer.get_ref().buffer, b"Line 1\nLine 2\n");
@@ -885,9 +904,10 @@ fn partial_line_buffered_after_line_write() {
 /// a newline and on their own are greater in length than the internal buffer, the
 /// passed bytes are immediately written to the inner writer.
 #[test]
+#[cfg(feature = "alloc")]
 fn long_line_flushed() {
     let writer = ProgrammableSink::default();
-    let mut writer = LineWriter::with_capacity(5, writer);
+    let mut writer = ArrayLineWriter::<_, 5>::new(writer);
 
     assert_eq!(writer.write(b"0123456789").unwrap(), 10);
     assert_eq!(&writer.get_ref().buffer, b"0123456789");
@@ -898,9 +918,10 @@ fn long_line_flushed() {
 /// the property that `write` should make at-most-one attempt to write
 /// new data.
 #[test]
+#[cfg(feature = "alloc")]
 fn line_long_tail_not_flushed() {
     let writer = ProgrammableSink::default();
-    let mut writer = LineWriter::with_capacity(5, writer);
+    let mut writer = ArrayLineWriter::<_, 5>::new(writer);
 
     // Assert that Line 1\n is flushed and the long tail isn't.
     let bytes = b"Line 1\n0123456789";
@@ -910,9 +931,10 @@ fn line_long_tail_not_flushed() {
 
 // Test that appending to a full buffer emits a single write, flushing the buffer.
 #[test]
+#[cfg(feature = "alloc")]
 fn line_full_buffer_flushed() {
     let writer = ProgrammableSink::default();
-    let mut writer = LineWriter::with_capacity(5, writer);
+    let mut writer = ArrayLineWriter::<_, 5>::new(writer);
     assert_eq!(writer.write(b"01234").unwrap(), 5);
 
     // Because the buffer is full, this subsequent write will flush it
@@ -923,6 +945,7 @@ fn line_full_buffer_flushed() {
 /// Test that, if an attempt to pre-flush buffered data returns Ok(0),
 /// this is propagated as an error.
 #[test]
+#[cfg(feature = "alloc")]
 fn line_buffer_write0_error() {
     let writer = ProgrammableSink {
         // Accept one write, then return Ok(0) on subsequent ones
@@ -930,7 +953,7 @@ fn line_buffer_write0_error() {
 
         ..Default::default()
     };
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
 
     // This should write "Line 1\n" and buffer "Partial"
     assert_eq!(writer.write(b"Line 1\nPartial").unwrap(), 14);
@@ -947,6 +970,7 @@ fn line_buffer_write0_error() {
 /// Test that, if a write returns Ok(0) after a successful pre-flush, this
 /// is propagated as Ok(0)
 #[test]
+#[cfg(feature = "alloc")]
 fn line_buffer_write0_normal() {
     let writer = ProgrammableSink {
         // Accept two writes, then return Ok(0) on subsequent ones
@@ -954,7 +978,7 @@ fn line_buffer_write0_normal() {
 
         ..Default::default()
     };
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
 
     // This should write "Line 1\n" and buffer "Partial"
     assert_eq!(writer.write(b"Line 1\nPartial").unwrap(), 14);
@@ -968,13 +992,14 @@ fn line_buffer_write0_normal() {
 
 /// LineWriter has a custom `write_all`; make sure it works correctly
 #[test]
+#[cfg(feature = "alloc")]
 fn line_write_all() {
     let writer = ProgrammableSink {
         // Only write 5 bytes at a time
         accept_prefix: Some(5),
         ..Default::default()
     };
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
 
     writer.write_all(b"Line 1\nLine 2\nLine 3\nLine 4\nPartial").unwrap();
     assert_eq!(&writer.get_ref().buffer, b"Line 1\nLine 2\nLine 3\nLine 4\n");
@@ -986,6 +1011,7 @@ fn line_write_all() {
 }
 
 #[test]
+#[cfg(feature = "alloc")]
 fn line_write_all_error() {
     let writer = ProgrammableSink {
         // Only accept up to 3 writes of up to 5 bytes each
@@ -994,7 +1020,7 @@ fn line_write_all_error() {
         ..Default::default()
     };
 
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
     let res = writer.write_all(b"Line 1\nLine 2\nLine 3\nLine 4\nPartial");
     assert!(res.is_err());
     // An error from write_all leaves everything in an indeterminate state,
@@ -1006,6 +1032,7 @@ fn line_write_all_error() {
 /// less than that, leading to inappropriate partial line writes.
 /// Regression test for that issue.
 #[test]
+#[cfg(feature = "alloc")]
 fn partial_multiline_buffering() {
     let writer = ProgrammableSink {
         // Write only up to 5 bytes at a time
@@ -1013,7 +1040,7 @@ fn partial_multiline_buffering() {
         ..Default::default()
     };
 
-    let mut writer = LineWriter::with_capacity(10, writer);
+    let mut writer = ArrayLineWriter::<_, 10>::new(writer);
 
     let content = b"AAAAABBBBB\nCCCCDDDDDD\nEEE";
 
@@ -1033,6 +1060,7 @@ fn partial_multiline_buffering() {
 /// Same as test_partial_multiline_buffering, but in the event NO full lines
 /// fit in the buffer, just buffer as much as possible
 #[test]
+#[cfg(feature = "alloc")]
 fn partial_multiline_buffering_without_full_line() {
     let writer = ProgrammableSink {
         // Write only up to 5 bytes at a time
@@ -1040,7 +1068,7 @@ fn partial_multiline_buffering_without_full_line() {
         ..Default::default()
     };
 
-    let mut writer = LineWriter::with_capacity(5, writer);
+    let mut writer = ArrayLineWriter::<_, 5>::new(writer);
 
     let content = b"AAAAABBBBBBBBBB\nCCCCC\nDDDDD";
 
@@ -1058,16 +1086,19 @@ fn partial_multiline_buffering_without_full_line() {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(feature = "alloc")]
 enum RecordedEvent {
     Write(String),
     Flush,
 }
 
 #[derive(Debug, Clone, Default)]
+#[cfg(feature = "alloc")]
 struct WriteRecorder {
     pub events: Vec<RecordedEvent>,
 }
 
+#[cfg(feature = "alloc")]
 impl Write for WriteRecorder {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         use core::str::from_utf8;
@@ -1091,7 +1122,7 @@ impl Write for WriteRecorder {
 #[cfg(feature = "alloc")]
 fn single_formatted_write() {
     let writer = WriteRecorder::default();
-    let mut writer = LineWriter::new(writer);
+    let mut writer = ArrayLineWriter::<_, 1024>::new(writer);
 
     // Under a naive implementation of LineWriter, this will result in two
     // writes: "hello, world" and "!\n", because write() has to flush the
@@ -1116,7 +1147,7 @@ fn bufreader_full_initialize() {
             }
         }
     }
-    let mut reader = BufReader::new(OneByteReader);
+    let mut reader = ArrayBufReader::<_, 1024>::new(OneByteReader);
     // Nothing is initialized yet.
     assert!(!reader.initialized());
 
@@ -1129,10 +1160,11 @@ fn bufreader_full_initialize() {
 
 /// This is a regression test for https://github.com/rust-lang/rust/issues/127584.
 #[test]
+#[cfg(feature = "alloc")]
 fn bufwriter_aliasing() {
-    use crate::io::{BufWriter, Cursor};
+    use crate::io::{ArrayBufWriter, Cursor};
     let mut v = vec![0; 1024];
     let c = Cursor::new(&mut v);
-    let w = BufWriter::new(Box::new(c));
+    let w = ArrayBufWriter::<_, 1024>::new(Box::new(c));
     let _ = w.into_parts();
 }

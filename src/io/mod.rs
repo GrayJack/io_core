@@ -24,10 +24,13 @@ pub use util::{empty, repeat, sink, Empty, Repeat, Sink};
 mod cursor;
 pub use cursor::Cursor;
 
+mod array_buffered;
+pub use array_buffered::{ArrayBufReader, ArrayBufWriter, ArrayLineWriter, IntoInnerError};
+
 #[cfg(feature = "alloc")]
 mod buffered;
 #[cfg(feature = "alloc")]
-pub use buffered::{BufReader, BufWriter, IntoInnerError, LineWriter};
+pub use buffered::{BufReader, BufWriter, LineWriter};
 
 mod pipe;
 

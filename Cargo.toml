@@ -11,7 +11,8 @@ memchr = { version = "2.8.0", default-features = false }
 [features]
 default = []
 alloc = []
-std = ["alloc"]
-
 # use nightly features
 nightly = []
+
+# Not complete, do not use it
+std = ["alloc"]

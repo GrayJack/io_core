@@ -4,8 +4,6 @@ use core::{
     ptr,
 };
 
-use alloc::vec::Vec;
-
 use crate::io::{
     self, ErrorKind, IntoInnerError, IoSlice, Seek, SeekFrom, Write, DEFAULT_BUF_SIZE,
 };
@@ -16,66 +14,62 @@ use crate::io::{
 /// It can be excessively inefficient to work directly with something that
 /// implements [`Write`]. For example, every call to
 /// [`write`][`TcpStream::write`] on [`TcpStream`] results in a system call. A
-/// `BufWriter<W>` keeps an in-memory buffer of data and writes it to an underlying
+/// `ArrayBufWriter<W, N>` keeps an in-memory buffer of data and writes it to an underlying
 /// writer in large, infrequent batches.
 ///
-/// `BufWriter<W>` can improve the speed of programs that make *small* and
+/// `ArrayBufWriter<W, N>` can improve the speed of programs that make *small* and
 /// *repeated* write calls to the same file or network socket. It does not
 /// help when writing very large amounts at once, or writing just one or a few
 /// times. It also provides no advantage when writing to a destination that is
-/// in memory, like a <code>[Vec]\<u8></code>.
+/// in memory, like a <code>\[u8; N]</code>.
 ///
-/// It is critical to call [`flush`] before `BufWriter<W>` is dropped. Though
+/// It is critical to call [`flush`] before `ArrayBufWriter<W, N>` is dropped. Though
 /// dropping will attempt to flush the contents of the buffer, any errors
 /// that happen in the process of dropping will be ignored. Calling [`flush`]
 /// ensures that the buffer is empty and thus dropping will not even attempt
 /// file operations.
 ///
-/// # Examples
-///
-/// Let's write the numbers one through ten to a [`TcpStream`]:
-///
-/// ```no_run
-/// use std::{io::prelude::*, net::TcpStream};
-///
-/// let mut stream = TcpStream::connect("127.0.0.1:34254").unwrap();
-///
-/// for i in 0..10 {
-///     stream.write(&[i + 1]).unwrap();
-/// }
-/// ```
-///
-/// Because we're not buffering, we write each one in turn, incurring the
-/// overhead of a system call per byte written. We can fix this with a
-/// `BufWriter<W>`:
-///
-/// ```no_run
-/// use std::{
-///     io::{prelude::*, BufWriter},
-///     net::TcpStream,
-/// };
-///
-/// let mut stream = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
-///
-/// for i in 0..10 {
-///     stream.write(&[i + 1]).unwrap();
-/// }
-/// stream.flush().unwrap();
-/// ```
-///
-/// By wrapping the stream with a `BufWriter<W>`, these ten writes are all grouped
-/// together by the buffer and will all be written out in one system call when
-/// the `stream` is flushed.
-///
-/// [`TcpStream::write`]: crate::net::TcpStream::write
-/// [`TcpStream`]: crate::net::TcpStream
 /// [`flush`]: BufWriter::flush
-pub struct BufWriter<W: ?Sized + Write> {
-    // The buffer. Avoid using this like a normal `Vec` in common code paths.
-    // That is, don't use `buf.push`, `buf.extend_from_slice`, or any other
-    // methods that require bounds checking or the like. This makes an enormous
-    // difference to performance (we may want to stop using a `Vec` entirely).
-    buf: Vec<u8>,
+/// [`TcpStream::write`]: std::net::TcpStream::write
+/// [`TcpStream`]: std::net::TcpStream
+// # Examples
+//
+// Let's write the numbers one through ten to a [`TcpStream`]:
+//
+// ```no_run
+// use std::{io::prelude::*, net::TcpStream};
+//
+// let mut stream = TcpStream::connect("127.0.0.1:34254").unwrap();
+//
+// for i in 0..10 {
+//     stream.write(&[i + 1]).unwrap();
+// }
+// ```
+//
+// Because we're not buffering, we write each one in turn, incurring the
+// overhead of a system call per byte written. We can fix this with a
+// `ArrayBufWriter<W, N>`:
+//
+// ```no_run
+// use std::{
+//     io::{prelude::*, BufWriter},
+//     net::TcpStream,
+// };
+//
+// let mut stream = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
+//
+// for i in 0..10 {
+//     stream.write(&[i + 1]).unwrap();
+// }
+// stream.flush().unwrap();
+// ```
+//
+// By wrapping the stream with a `ArrayBufWriter<W, N>`, these ten writes are all grouped
+// together by the buffer and will all be written out in one system call when
+// the `stream` is flushed.
+pub struct ArrayBufWriter<W: ?Sized + Write, const N: usize> {
+    buf: [u8; N],
+    len: usize,
     // #30888: If the inner writer panics in a call to write, we don't want to
     // write the buffered data a second time in BufWriter's destructor. This
     // flag tells the Drop impl if it should skip the flush.
@@ -83,9 +77,8 @@ pub struct BufWriter<W: ?Sized + Write> {
     inner: W,
 }
 
-impl<W: Write> BufWriter<W> {
-    /// Creates a new `BufWriter<W>` with a default buffer capacity. The default is currently 8 KiB,
-    /// but may change in the future.
+impl<W: Write, const N: usize> ArrayBufWriter<W, N> {
+    /// Creates a new `ArrayBufWriter<W, N>` with N as a buffer capacity.
     ///
     /// # Examples
     ///
@@ -94,41 +87,20 @@ impl<W: Write> BufWriter<W> {
     ///
     /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     /// ```
-    pub fn new(inner: W) -> BufWriter<W> {
-        BufWriter::with_capacity(DEFAULT_BUF_SIZE, inner)
-    }
-
-    #[cfg(feature = "nightly")]
-    pub(crate) fn try_new_buffer() -> io::Result<Vec<u8>> {
-        Vec::try_with_capacity(DEFAULT_BUF_SIZE).map_err(|_| {
-            crate::const_error!(ErrorKind::OutOfMemory, "failed to allocate write buffer")
-        })
-    }
-
-    pub(crate) fn with_buffer(inner: W, buf: Vec<u8>) -> Self {
+    pub const fn new(inner: W) -> Self {
         Self {
-            inner,
-            buf,
+            buf: [0; N],
+            len: 0,
             panicked: false,
+            inner,
         }
     }
 
-    /// Creates a new `BufWriter<W>` with at least the specified buffer capacity.
-    ///
-    /// # Examples
-    ///
-    /// Creating a buffer with a buffer of at least a hundred bytes.
-    ///
-    /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
-    ///
-    /// let stream = TcpStream::connect("127.0.0.1:34254").unwrap();
-    /// let mut buffer = BufWriter::with_capacity(100, stream);
-    /// ```
-    pub fn with_capacity(capacity: usize, inner: W) -> BufWriter<W> {
-        BufWriter {
+    pub(crate) const fn with_buffer(inner: W, buf: [u8; N], len: usize) -> Self {
+        Self {
             inner,
-            buf: Vec::with_capacity(capacity),
+            len,
+            buf,
             panicked: false,
         }
     }
@@ -151,7 +123,7 @@ impl<W: Write> BufWriter<W> {
     /// // unwrap the TcpStream and flush the buffer
     /// let stream = buffer.into_inner().unwrap();
     /// ```
-    pub fn into_inner(mut self) -> Result<W, IntoInnerError<BufWriter<W>>> {
+    pub fn into_inner(mut self) -> Result<W, IntoInnerError<Self>> {
         match self.flush_buf() {
             Err(e) => Err(IntoInnerError::new(self, e)),
             Ok(()) => Ok(self.into_parts().0),
@@ -180,13 +152,13 @@ impl<W: Write> BufWriter<W> {
     /// assert_eq!(recovered_writer.len(), 0);
     /// assert_eq!(&buffered_data.unwrap(), b"ata");
     /// ```
-    pub fn into_parts(self) -> (W, Result<Vec<u8>, WriterPanicked>) {
+    pub fn into_parts(self) -> (W, Result<[u8; N], ArrayWriterPanicked<N>>) {
         let mut this = ManuallyDrop::new(self);
-        let buf = mem::take(&mut this.buf);
+        let buf = this.buf;
         let buf = if !this.panicked {
             Ok(buf)
         } else {
-            Err(WriterPanicked { buf })
+            Err(ArrayWriterPanicked { buf, len: this.len })
         };
 
         // SAFETY: double-drops are prevented by putting `this` in a ManuallyDrop that is never
@@ -197,7 +169,7 @@ impl<W: Write> BufWriter<W> {
     }
 }
 
-impl<W: ?Sized + Write> BufWriter<W> {
+impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
     /// Send data in our local buffer into the inner writer, looping as
     /// necessary until either it's all been sent or an error occurs.
     ///
@@ -210,18 +182,23 @@ impl<W: ?Sized + Write> BufWriter<W> {
         /// are complete. It tracks the number of written bytes and drains them
         /// all from the front of the buffer when dropped.
         struct BufGuard<'a> {
-            buffer: &'a mut Vec<u8>,
+            buffer: &'a mut [u8],
             written: usize,
+            len: usize,
         }
 
         impl<'a> BufGuard<'a> {
-            fn new(buffer: &'a mut Vec<u8>) -> Self {
-                Self { buffer, written: 0 }
+            fn new(buffer: &'a mut [u8], len: usize) -> Self {
+                Self {
+                    buffer,
+                    written: 0,
+                    len,
+                }
             }
 
             /// The unwritten part of the buffer
             fn remaining(&self) -> &[u8] {
-                &self.buffer[self.written..]
+                &self.buffer[self.written..self.len]
             }
 
             /// Flag some bytes as removed from the front of the buffer
@@ -231,19 +208,22 @@ impl<W: ?Sized + Write> BufWriter<W> {
 
             /// true if all of the bytes have been written
             fn done(&self) -> bool {
-                self.written >= self.buffer.len()
+                self.written >= self.len
             }
         }
 
         impl Drop for BufGuard<'_> {
             fn drop(&mut self) {
                 if self.written > 0 {
-                    self.buffer.drain(..self.written);
+                    let remaining = self.len - self.written;
+                    if remaining > 0 {
+                        self.buffer.copy_within(self.written..self.len, 0);
+                    }
                 }
             }
         }
 
-        let mut guard = BufGuard::new(&mut self.buf);
+        let mut guard = BufGuard::new(&mut self.buf, self.len);
         while !guard.done() {
             self.panicked = true;
             let r = self.inner.write(guard.remaining());
@@ -261,6 +241,7 @@ impl<W: ?Sized + Write> BufWriter<W> {
                 Err(e) => return Err(e),
             }
         }
+        self.len -= guard.written;
         Ok(())
     }
 
@@ -326,7 +307,7 @@ impl<W: ?Sized + Write> BufWriter<W> {
     /// let bytes_buffered = buf_writer.buffer().len();
     /// ```
     pub fn buffer(&self) -> &[u8] {
-        &self.buf
+        &self.buf[..self.len]
     }
 
     /// Returns a mutable reference to the internal buffer.
@@ -337,7 +318,7 @@ impl<W: ?Sized + Write> BufWriter<W> {
     /// That the buffer is a `Vec` is an implementation detail.
     /// Callers should not modify the capacity as there currently is no public API to do so
     /// and thus any capacity changes would be unexpected by the user.
-    pub(in crate::io) fn buffer_mut(&mut self) -> &mut Vec<u8> {
+    pub(in crate::io) fn buffer_mut(&mut self) -> &mut [u8] {
         &mut self.buf
     }
 
@@ -355,8 +336,8 @@ impl<W: ?Sized + Write> BufWriter<W> {
     /// // Calculate how many bytes can be written without flushing
     /// let without_flush = capacity - buf_writer.buffer().len();
     /// ```
-    pub fn capacity(&self) -> usize {
-        self.buf.capacity()
+    pub const fn capacity(&self) -> usize {
+        N
     }
 
     // Ensure this function does not get inlined into `write`, so that it
@@ -373,7 +354,7 @@ impl<W: ?Sized + Write> BufWriter<W> {
 
         // Why not len > capacity? To avoid a needless trip through the buffer when the input
         // exactly fills it. We'd just need to flush it to the underlying writer anyway.
-        if buf.len() >= self.buf.capacity() {
+        if buf.len() >= self.capacity() {
             self.panicked = true;
             let r = self.get_mut().write(buf);
             self.panicked = false;
@@ -415,7 +396,7 @@ impl<W: ?Sized + Write> BufWriter<W> {
 
         // Why not len > capacity? To avoid a needless trip through the buffer when the input
         // exactly fills it. We'd just need to flush it to the underlying writer anyway.
-        if buf.len() >= self.buf.capacity() {
+        if buf.len() >= self.capacity() {
             self.panicked = true;
             let r = self.get_mut().write_all(buf);
             self.panicked = false;
@@ -438,24 +419,24 @@ impl<W: ?Sized + Write> BufWriter<W> {
         }
     }
 
-    // SAFETY: Requires `buf.len() <= self.buf.capacity() - self.buf.len()`,
+    // SAFETY: Requires `buf.len() <= self.buf.capacity() - self.len`,
     // i.e., that input buffer length is less than or equal to spare capacity.
     #[inline]
     unsafe fn write_to_buffer_unchecked(&mut self, buf: &[u8]) {
         debug_assert!(buf.len() <= self.spare_capacity());
-        let old_len = self.buf.len();
+        let old_len = self.len;
         let buf_len = buf.len();
         let src = buf.as_ptr();
         unsafe {
             let dst = self.buf.as_mut_ptr().add(old_len);
             ptr::copy_nonoverlapping(src, dst, buf_len);
-            self.buf.set_len(old_len + buf_len);
+            self.len = old_len + buf_len;
         }
     }
 
     #[inline]
     fn spare_capacity(&self) -> usize {
-        self.buf.capacity() - self.buf.len()
+        self.capacity() - self.len
     }
 }
 
@@ -489,36 +470,37 @@ impl<W: ?Sized + Write> BufWriter<W> {
 /// assert!(matches!(recovered_writer, PanickingWriter));
 /// assert_eq!(buffered_data.unwrap_err().into_inner(), b"some data");
 /// ```
-pub struct WriterPanicked {
-    buf: Vec<u8>,
+pub struct ArrayWriterPanicked<const N: usize> {
+    buf: [u8; N],
+    len: usize,
 }
 
-impl WriterPanicked {
+impl<const N: usize> ArrayWriterPanicked<N> {
     /// Returns the perhaps-unwritten data.  Some of this data may have been written by the
     /// panicking call(s) to the underlying writer, so simply writing it again is not a good idea.
     #[must_use = "`self` will be dropped if the result is not used"]
-    pub fn into_inner(self) -> Vec<u8> {
+    pub fn into_inner(self) -> [u8; N] {
         self.buf
     }
 }
 
-impl error::Error for WriterPanicked {}
+impl<const N: usize> error::Error for ArrayWriterPanicked<N> {}
 
-impl fmt::Display for WriterPanicked {
+impl<const N: usize> fmt::Display for ArrayWriterPanicked<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        "BufWriter inner writer panicked, what data remains unwritten is not known".fmt(f)
+        "ArrayBufWriter inner writer panicked, what data remains unwritten is not known".fmt(f)
     }
 }
 
-impl fmt::Debug for WriterPanicked {
+impl<const N: usize> fmt::Debug for ArrayWriterPanicked<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("WriterPanicked")
-            .field("buffer", &format_args!("{}/{}", self.buf.len(), self.buf.capacity()))
+        f.debug_struct("ArrayWriterPanicked")
+            .field("buffer", &format_args!("{}/{}", self.len, N))
             .finish()
     }
 }
 
-impl<W: ?Sized + Write> Write for BufWriter<W> {
+impl<W: ?Sized + Write, const N: usize> Write for ArrayBufWriter<W, N> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         // Use < instead of <= to avoid a needless trip through the buffer in some cases.
@@ -571,7 +553,7 @@ impl<W: ?Sized + Write> Write for BufWriter<W> {
                     self.flush_buf()?;
                 }
 
-                if saturated_total_len >= self.buf.capacity() {
+                if saturated_total_len >= self.capacity() {
                     // Forward to our inner writer if the total length of the input is greater than
                     // or equal to our buffer capacity. If we would have
                     // overflowed, this condition also holds, and we punt to the
@@ -601,7 +583,7 @@ impl<W: ?Sized + Write> Write for BufWriter<W> {
                 if buf.len() > self.spare_capacity() {
                     self.flush_buf()?;
                 }
-                if buf.len() >= self.buf.capacity() {
+                if buf.len() >= self.capacity() {
                     // The slice is at least as large as the buffering capacity,
                     // so it's better to write it directly, bypassing the buffer.
                     self.panicked = true;
@@ -651,19 +633,19 @@ impl<W: ?Sized + Write> Write for BufWriter<W> {
     }
 }
 
-impl<W: ?Sized + Write> fmt::Debug for BufWriter<W>
+impl<W: ?Sized + Write, const N: usize> fmt::Debug for ArrayBufWriter<W, N>
 where
     W: fmt::Debug,
 {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("BufWriter")
+        fmt.debug_struct("ArrayBufWriter")
             .field("writer", &&self.inner)
-            .field("buffer", &format_args!("{}/{}", self.buf.len(), self.buf.capacity()))
+            .field("buffer", &format_args!("{}/{}", self.buf.len(), self.capacity()))
             .finish()
     }
 }
 
-impl<W: ?Sized + Write + Seek> Seek for BufWriter<W> {
+impl<W: ?Sized + Write + Seek, const N: usize> Seek for ArrayBufWriter<W, N> {
     /// Seek to the offset, in bytes, in the underlying writer.
     ///
     /// Seeking always writes out the internal buffer before seeking.
@@ -673,7 +655,7 @@ impl<W: ?Sized + Write + Seek> Seek for BufWriter<W> {
     }
 }
 
-impl<W: ?Sized + Write> Drop for BufWriter<W> {
+impl<W: ?Sized + Write, const N: usize> Drop for ArrayBufWriter<W, N> {
     fn drop(&mut self) {
         if !self.panicked {
             // dtors should not panic, so we ignore a failed flush
