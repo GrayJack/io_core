@@ -9,6 +9,9 @@ categories = ["data-structures", "no-std"]
 keywords = ["no_std", "io"]
 exclude = ["todo.md"]
 
+[package.metadata.docs.rs]
+features = ["alloc", "nightly"]
+
 [dependencies]
 memchr = { version = "2.8.0", default-features = false }
 

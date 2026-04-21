@@ -177,6 +177,7 @@ pub struct SimpleMessage {
 ///     Err(FAIL)
 /// }
 /// ```
+#[doc(hidden)]
 #[macro_export]
 macro_rules! const_error {
     ($kind:expr, $message:expr $(,)?) => {
