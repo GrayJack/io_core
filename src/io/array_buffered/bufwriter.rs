@@ -29,44 +29,45 @@ use crate::io::{
 /// ensures that the buffer is empty and thus dropping will not even attempt
 /// file operations.
 ///
-/// [`flush`]: BufWriter::flush
+/// [`flush`]: crate::io::BufWriter::flush
 /// [`TcpStream::write`]: std::net::TcpStream::write
 /// [`TcpStream`]: std::net::TcpStream
 // # Examples
-//
-// Let's write the numbers one through ten to a [`TcpStream`]:
-//
-// ```no_run
-// use std::{io::prelude::*, net::TcpStream};
-//
-// let mut stream = TcpStream::connect("127.0.0.1:34254").unwrap();
-//
-// for i in 0..10 {
-//     stream.write(&[i + 1]).unwrap();
-// }
-// ```
-//
-// Because we're not buffering, we write each one in turn, incurring the
-// overhead of a system call per byte written. We can fix this with a
-// `ArrayBufWriter<W, N>`:
-//
-// ```no_run
-// use std::{
-//     io::{prelude::*, BufWriter},
-//     net::TcpStream,
-// };
-//
-// let mut stream = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
-//
-// for i in 0..10 {
-//     stream.write(&[i + 1]).unwrap();
-// }
-// stream.flush().unwrap();
-// ```
-//
-// By wrapping the stream with a `ArrayBufWriter<W, N>`, these ten writes are all grouped
-// together by the buffer and will all be written out in one system call when
-// the `stream` is flushed.
+/// Let's write the numbers one through ten to a [`TcpStream`]:
+///
+/// ```no_run
+/// use std::net::TcpStream;
+///
+/// use io_core::io::Write;
+///
+/// let mut stream = TcpStream::connect("127.0.0.1:34254").unwrap();
+///
+/// for i in 0..10 {
+///     stream.write(&[i + 1]).unwrap();
+/// }
+/// ```
+///
+/// Because we're not buffering, we write each one in turn, incurring the
+/// overhead of a system call per byte written. We can fix this with a
+/// `ArrayBufWriter<W, N>`:
+///
+/// ```no_run
+/// use std::net::TcpStream;
+///
+/// use io_core::io::{ArrayBufWriter, Write};
+///
+/// let mut stream: ArrayBufWriter<_, 1024> =
+///     ArrayBufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
+///
+/// for i in 0..10 {
+///     stream.write(&[i + 1]).unwrap();
+/// }
+/// stream.flush().unwrap();
+/// ```
+///
+/// By wrapping the stream with a `ArrayBufWriter<W, N>`, these ten writes are all grouped
+/// together by the buffer and will all be written out in one system call when
+/// the `stream` is flushed.
 pub struct ArrayBufWriter<W: ?Sized + Write, const N: usize> {
     buf: [u8; N],
     len: usize,
@@ -83,9 +84,11 @@ impl<W: Write, const N: usize> ArrayBufWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
     ///
-    /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
+    /// use io_core::io::ArrayBufWriter;
+    ///
+    /// let mut buffer = ArrayBufWriter::<_, 512>::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     /// ```
     pub const fn new(inner: W) -> Self {
         Self {
@@ -116,9 +119,12 @@ impl<W: Write, const N: usize> ArrayBufWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
     ///
-    /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
+    /// use io_core::io::ArrayBufWriter;
+    ///
+    /// let mut buffer: ArrayBufWriter<_, 512> =
+    ///     ArrayBufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
     /// // unwrap the TcpStream and flush the buffer
     /// let stream = buffer.into_inner().unwrap();
@@ -130,8 +136,8 @@ impl<W: Write, const N: usize> ArrayBufWriter<W, N> {
         }
     }
 
-    /// Disassembles this `BufWriter<W>`, returning the underlying writer, and any buffered but
-    /// unwritten data.
+    /// Disassembles this `ArrayBufWriter<W, N>`, returning the underlying writer, and any buffered
+    /// but unwritten data and the length of the written data.
     ///
     /// If the underlying writer panicked, it is not known what portion of the data was written.
     /// In this case, we return `WriterPanicked` for the buffered data (from which the buffer
@@ -142,21 +148,22 @@ impl<W: Write, const N: usize> ArrayBufWriter<W, N> {
     /// # Examples
     ///
     /// ```
-    /// use std::io::{BufWriter, Write};
+    /// use io_core::io::{ArrayBufWriter, Write};
     ///
     /// let mut buffer = [0u8; 10];
-    /// let mut stream = BufWriter::new(buffer.as_mut());
+    /// let mut stream = ArrayBufWriter::<_, 512>::new(buffer.as_mut());
     /// write!(stream, "too much data").unwrap();
     /// stream.flush().expect_err("it doesn't fit");
     /// let (recovered_writer, buffered_data) = stream.into_parts();
     /// assert_eq!(recovered_writer.len(), 0);
-    /// assert_eq!(&buffered_data.unwrap(), b"ata");
+    /// let (buffered_data, written) = buffered_data.unwrap();
+    /// assert_eq!(&buffered_data[..written], b"ata", "{written}");
     /// ```
-    pub fn into_parts(self) -> (W, Result<[u8; N], ArrayWriterPanicked<N>>) {
+    pub fn into_parts(self) -> (W, Result<([u8; N], usize), ArrayWriterPanicked<N>>) {
         let mut this = ManuallyDrop::new(self);
         let buf = this.buf;
         let buf = if !this.panicked {
-            Ok(buf)
+            Ok((buf, this.len))
         } else {
             Err(ArrayWriterPanicked { buf, len: this.len })
         };
@@ -265,9 +272,11 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
     ///
-    /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
+    /// use io_core::io::ArrayBufWriter;
+    ///
+    /// let mut buffer = ArrayBufWriter::<_, 512>::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
     /// // we can use reference just like buffer
     /// let reference = buffer.get_ref();
@@ -283,9 +292,11 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
     ///
-    /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
+    /// use io_core::io::ArrayBufWriter;
+    ///
+    /// let mut buffer = ArrayBufWriter::<_, 512>::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
     /// // we can use reference just like buffer
     /// let reference = buffer.get_mut();
@@ -299,9 +310,11 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
     ///
-    /// let buf_writer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
+    /// use io_core::io::ArrayBufWriter;
+    ///
+    /// let buf_writer = ArrayBufWriter::<_, 512>::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
     /// // See how many bytes are currently buffered
     /// let bytes_buffered = buf_writer.buffer().len();
@@ -327,9 +340,11 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
     ///
-    /// let buf_writer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
+    /// use io_core::io::ArrayBufWriter;
+    ///
+    /// let buf_writer = ArrayBufWriter::<_, 512>::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
     /// // Check the capacity of the inner buffer
     /// let capacity = buf_writer.capacity();
@@ -446,10 +461,9 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
 /// # Example
 ///
 /// ```
-/// use std::{
-///     io::{self, BufWriter, Write},
-///     panic::{catch_unwind, AssertUnwindSafe},
-/// };
+/// use std::panic::{catch_unwind, AssertUnwindSafe};
+///
+/// use io_core::io::{self, ArrayBufWriter, Write};
 ///
 /// struct PanickingWriter;
 /// impl Write for PanickingWriter {
@@ -462,13 +476,13 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
 ///     }
 /// }
 ///
-/// let mut stream = BufWriter::new(PanickingWriter);
+/// let mut stream: ArrayBufWriter<_, 512> = ArrayBufWriter::new(PanickingWriter);
 /// write!(stream, "some data").unwrap();
 /// let result = catch_unwind(AssertUnwindSafe(|| stream.flush().unwrap()));
 /// assert!(result.is_err());
 /// let (recovered_writer, buffered_data) = stream.into_parts();
 /// assert!(matches!(recovered_writer, PanickingWriter));
-/// assert_eq!(buffered_data.unwrap_err().into_inner(), b"some data");
+/// assert_eq!(buffered_data.unwrap_err().buffer(), b"some data");
 /// ```
 pub struct ArrayWriterPanicked<const N: usize> {
     buf: [u8; N],
@@ -481,6 +495,11 @@ impl<const N: usize> ArrayWriterPanicked<N> {
     #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_inner(self) -> [u8; N] {
         self.buf
+    }
+
+    /// Gets the slice of the perhaps-unwritten data.
+    pub fn buffer(&self) -> &[u8] {
+        &self.buf[..self.len]
     }
 }
 

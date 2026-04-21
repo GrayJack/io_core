@@ -305,7 +305,7 @@ fn test_buffered_reader_seek_underflow_discard_buffer_between_seeks() {
                 self.first_seek = false;
                 Ok(0)
             } else {
-                Err(crate::const_error!(io::ErrorKind::Other, "oh no!"))
+                Err(crate::io_const_error!(io::ErrorKind::Other, "oh no!"))
             }
         }
     }
@@ -608,12 +608,12 @@ struct ProgrammableSink {
 impl Write for ProgrammableSink {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         if self.always_write_error {
-            return Err(crate::const_error!(io::ErrorKind::Other, "test - always_write_error"));
+            return Err(crate::io_const_error!(io::ErrorKind::Other, "test - always_write_error"));
         }
 
         match self.max_writes {
             Some(0) if self.error_after_max_writes => {
-                return Err(crate::const_error!(io::ErrorKind::Other, "test - max_writes"));
+                return Err(crate::io_const_error!(io::ErrorKind::Other, "test - max_writes"));
             },
             Some(0) => return Ok(0),
             Some(ref mut count) => *count -= 1,
@@ -634,7 +634,7 @@ impl Write for ProgrammableSink {
     fn flush(&mut self) -> io::Result<()> {
         if self.always_flush_error {
             // Err(io::Error::new(io::ErrorKind::Other, "test - always_flush_error"));
-            Err(crate::const_error!(io::ErrorKind::Other, "test - always_flush_error"))
+            Err(crate::io_const_error!(io::ErrorKind::Other, "test - always_flush_error"))
         } else {
             Ok(())
         }

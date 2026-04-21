@@ -29,7 +29,7 @@ mod tests;
 /// If you want to copy the contents of one file to another and you’re
 /// working with filesystem paths, see the [`fs::copy`] function.
 ///
-/// [`fs::copy`]: crate::fs::copy
+/// [`fs::copy`]: std::fs::copy
 ///
 /// # Errors
 ///
@@ -44,7 +44,7 @@ mod tests;
 /// # Examples
 ///
 /// ```
-/// use std::io;
+/// use io_core::io;
 ///
 /// fn main() -> io::Result<()> {
 ///     let mut reader: &[u8] = b"hello";

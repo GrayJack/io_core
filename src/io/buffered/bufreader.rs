@@ -29,16 +29,15 @@ use crate::io::{
 /// unwrapping the `BufReader<R>` with [`BufReader::into_inner`] can also cause
 /// data loss.
 ///
-/// [`TcpStream::read`]: crate::net::TcpStream::read
-/// [`TcpStream`]: crate::net::TcpStream
+/// [`TcpStream::read`]: std::net::TcpStream::read
+/// [`TcpStream`]: std::net::TcpStream
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use std::{
-///     fs::File,
-///     io::{prelude::*, BufReader},
-/// };
+/// use std::fs::File;
+///
+/// use io_core::io::{BufRead, BufReader};
 ///
 /// fn main() -> std::io::Result<()> {
 ///     let f = File::open("log.txt")?;
@@ -62,9 +61,11 @@ impl<R: Read> BufReader<R> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::BufReader};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, BufReader, Read};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let f = File::open("log.txt")?;
     ///     let reader = BufReader::new(f);
     ///     Ok(())
@@ -90,9 +91,11 @@ impl<R: Read> BufReader<R> {
     /// Creating a buffer with ten bytes of capacity:
     ///
     /// ```no_run
-    /// use std::{fs::File, io::BufReader};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, BufReader};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let f = File::open("log.txt")?;
     ///     let reader = BufReader::with_capacity(10, f);
     ///     Ok(())
@@ -121,8 +124,7 @@ impl<R: Read + ?Sized> BufReader<R> {
     /// ## Examples
     ///
     /// ```rust
-    /// #![feature(bufreader_peek)]
-    /// use std::io::{BufReader, Read};
+    /// use io_core::io::{BufReader, Read};
     ///
     /// let mut bytes = &b"oh, hello there"[..];
     /// let mut rdr = BufReader::with_capacity(6, &mut bytes);
@@ -161,7 +163,9 @@ impl<R: ?Sized> BufReader<R> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::BufReader};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::BufReader;
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let f1 = File::open("log.txt")?;
@@ -182,7 +186,9 @@ impl<R: ?Sized> BufReader<R> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::BufReader};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::BufReader;
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let f1 = File::open("log.txt")?;
@@ -205,12 +211,11 @@ impl<R: ?Sized> BufReader<R> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::File,
-    ///     io::{BufRead, BufReader},
-    /// };
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, BufRead, BufReader};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let f = File::open("log.txt")?;
     ///     let mut reader = BufReader::new(f);
     ///     assert!(reader.buffer().is_empty());
@@ -230,10 +235,9 @@ impl<R: ?Sized> BufReader<R> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::File,
-    ///     io::{BufRead, BufReader},
-    /// };
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{BufRead, BufReader};
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let f = File::open("log.txt")?;
@@ -257,7 +261,9 @@ impl<R: ?Sized> BufReader<R> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::BufReader};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::BufReader;
     ///
     /// fn main() -> std::io::Result<()> {
     ///     let f1 = File::open("log.txt")?;
@@ -537,10 +543,9 @@ impl<R: ?Sized + Seek> Seek for BufReader<R> {
     /// # Example
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::File,
-    ///     io::{self, BufRead, BufReader, Seek},
-    /// };
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, BufRead, BufReader, Seek};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = BufReader::new(File::open("foo.txt")?);

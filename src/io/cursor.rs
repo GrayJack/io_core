@@ -31,8 +31,9 @@ mod tests;
 /// code, but use an in-memory buffer in our tests. We can do this with
 /// `Cursor`:
 ///
-/// [bytes]: crate::slice "slice"
-/// [`File`]: crate::fs::File
+/// [bytes]: core::slice "slice"
+/// [`File`]: std::fs::File
+/// [`Seek`]: crate::io::Seek
 ///
 /// ```no_run
 /// use std::{
@@ -297,7 +298,7 @@ where
                 self.pos = n;
                 Ok(self.pos)
             },
-            None => Err(crate::const_error!(
+            None => Err(crate::io_const_error!(
                 ErrorKind::InvalidInput,
                 "invalid seek to a negative or overflowing position",
             )),
@@ -460,7 +461,7 @@ fn reserve_and_pad<A: Allocator>(
     pos_mut: &mut u64, vec: &mut Vec<u8, A>, buf_len: usize,
 ) -> io::Result<usize> {
     let pos: usize = (*pos_mut).try_into().map_err(|_| {
-        crate::const_error!(
+        crate::io_const_error!(
             ErrorKind::InvalidInput,
             "cursor position exceeds maximum possible vector length",
         )
@@ -584,7 +585,7 @@ where
 #[cfg(all(feature = "alloc", not(feature = "nightly")))]
 fn reserve_and_pad(pos_mut: &mut u64, vec: &mut Vec<u8>, buf_len: usize) -> io::Result<usize> {
     let pos: usize = (*pos_mut).try_into().map_err(|_| {
-        crate::const_error!(
+        crate::io_const_error!(
             ErrorKind::InvalidInput,
             "cursor position exceeds maximum possible vector length",
         )

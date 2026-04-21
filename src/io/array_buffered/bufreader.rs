@@ -30,25 +30,24 @@ use crate::io::{
 /// unwrapping the `ArrayBufReader<R, N>` with [`ArrayBufReader::into_inner`] can also cause
 /// data loss.
 ///
-/// [`TcpStream::read`]: crate::net::TcpStream::read
-/// [`TcpStream`]: crate::net::TcpStream
+/// [`TcpStream::read`]: std::net::TcpStream::read
+/// [`TcpStream`]: std::net::TcpStream
 // # Examples
-//
-// ```no_run
-// use std::fs::File;
-//
-// use io_core::io::{ArrayBufReader, Read};
-//
-// fn main() -> io_core::io::Result<()> {
-//     let f = File::open("log.txt")?;
-//     let mut reader = ArrayBufReader::new(f);
-//
-//     let mut line = String::new();
-//     let len = reader.read_line(&mut line)?;
-//     println!("First line is {len} bytes long");
-//     Ok(())
-// }
-// ```
+/// ```no_run
+/// use std::fs::File;
+///
+/// use io_core::io::{ArrayBufReader, BufRead};
+///
+/// fn main() -> io_core::io::Result<()> {
+///     let f = File::open("log.txt")?;
+///     let mut reader: ArrayBufReader<_, 512> = ArrayBufReader::new(f);
+///
+///     let mut line = String::new();
+///     let len = reader.read_line(&mut line)?;
+///     println!("First line is {len} bytes long");
+///     Ok(())
+/// }
+/// ```
 pub struct ArrayBufReader<R: ?Sized, const N: usize = DEFAULT_BUF_SIZE> {
     buf: ArrayBuffer<N>,
     inner: R,
@@ -57,18 +56,17 @@ pub struct ArrayBufReader<R: ?Sized, const N: usize = DEFAULT_BUF_SIZE> {
 impl<R: Read, const N: usize> ArrayBufReader<R, N> {
     /// Creates a new `ArrayBufReader<R>` with a default buffer capacity.
     // # Examples
-    //
-    // ```no_run
-    // use std::fs::File;
-    //
-    // use io_core::io::{ArrayBufReader, Read};
-    //
-    // fn main() -> io_core::io::Result<()> {
-    //     let f = File::open("log.txt")?;
-    //     let reader = ArrayBufReader::<_, 1024>::new(f);
-    //     Ok(())
-    // }
-    // ```
+    /// ```no_run
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, ArrayBufReader};
+    ///
+    /// fn main() -> io::Result<()> {
+    ///     let f = File::open("log.txt")?;
+    ///     let reader = ArrayBufReader::<_, 512>::new(f);
+    ///     Ok(())
+    /// }
+    /// ```
     pub const fn new(inner: R) -> Self {
         Self {
             buf: ArrayBuffer::new(),
@@ -93,22 +91,21 @@ impl<R: Read + ?Sized, const N: usize> ArrayBufReader<R, N> {
     /// with a value less than or equal to `n` to advance over some or all of
     /// the returned bytes.
     // ## Examples
-    //
-    // ```rust
-    // use core_io::io::{BufReader, Read};
-    //
-    // let mut bytes = &b"oh, hello there"[..];
-    // let mut rdr = BufReader::with_capacity(6, &mut bytes);
-    // assert_eq!(rdr.peek(2).unwrap(), b"oh");
-    // let mut buf = [0; 4];
-    // rdr.read(&mut buf[..]).unwrap();
-    // assert_eq!(&buf, b"oh, ");
-    // assert_eq!(rdr.peek(5).unwrap(), b"hello");
-    // let mut s = String::new();
-    // rdr.read_to_string(&mut s).unwrap();
-    // assert_eq!(&s, "hello there");
-    // assert_eq!(rdr.peek(1).unwrap().len(), 0);
-    // ```
+    /// ```rust
+    /// use io_core::io::{BufReader, Read};
+    ///
+    /// let mut bytes = &b"oh, hello there"[..];
+    /// let mut rdr = BufReader::with_capacity(6, &mut bytes);
+    /// assert_eq!(rdr.peek(2).unwrap(), b"oh");
+    /// let mut buf = [0; 4];
+    /// rdr.read(&mut buf[..]).unwrap();
+    /// assert_eq!(&buf, b"oh, ");
+    /// assert_eq!(rdr.peek(5).unwrap(), b"hello");
+    /// let mut s = String::new();
+    /// rdr.read_to_string(&mut s).unwrap();
+    /// assert_eq!(&s, "hello there");
+    /// assert_eq!(rdr.peek(1).unwrap().len(), 0);
+    /// ```
     pub fn peek(&mut self, n: usize) -> io::Result<&[u8]> {
         assert!(n <= self.capacity());
         while n > self.buf.buffer().len() {
@@ -130,21 +127,21 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
     /// Gets a reference to the underlying reader.
     ///
     /// It is inadvisable to directly read from the underlying reader.
-    // # Examples
-    //
-    // ```no_run
-    // use std::fs::File;
-    //
-    // use io_core::io::ArrayBufReader;
-    //
-    // fn main() -> io_core::io::Result<()> {
-    //     let f1 = File::open("log.txt")?;
-    //     let reader = ArrayBufReader::<_, 1024>::new(f1);
-    //
-    //     let f2 = reader.get_ref();
-    //     Ok(())
-    // }
-    // ```
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::ArrayBufReader;
+    ///
+    /// fn main() -> io_core::io::Result<()> {
+    ///     let f1 = File::open("log.txt")?;
+    ///     let reader = ArrayBufReader::<_, 1024>::new(f1);
+    ///
+    ///     let f2 = reader.get_ref();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn get_ref(&self) -> &R {
         &self.inner
     }
@@ -152,21 +149,21 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
     /// Gets a mutable reference to the underlying reader.
     ///
     /// It is inadvisable to directly read from the underlying reader.
-    // # Examples
-    //
-    // ```no_run
-    // use std::fs::File;
-    //
-    // use io_core::io::ArrayBufReader;
-    //
-    // fn main() -> io_core::io::Result<()> {
-    //     let f1 = File::open("log.txt")?;
-    //     let mut reader: ArrayBufReader<_, 1024> = ArrayBufReader::new(f1);
-    //
-    //     let f2 = reader.get_mut();
-    //     Ok(())
-    // }
-    // ```
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::ArrayBufReader;
+    ///
+    /// fn main() -> io_core::io::Result<()> {
+    ///     let f1 = File::open("log.txt")?;
+    ///     let mut reader: ArrayBufReader<_, 1024> = ArrayBufReader::new(f1);
+    ///
+    ///     let f2 = reader.get_mut();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn get_mut(&mut self) -> &mut R {
         &mut self.inner
     }
@@ -182,9 +179,9 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
     /// ```no_run
     /// use std::fs::File;
     ///
-    /// use io_core::io::{ArrayBufReader, BufRead};
+    /// use io_core::io::{self, ArrayBufReader, BufRead};
     ///
-    /// fn main() -> io_core::io::Result<()> {
+    /// fn main() -> io::Result<()> {
     ///     let f = File::open("log.txt")?;
     ///     let mut reader = ArrayBufReader::<_, 1024>::new(f);
     ///     assert!(reader.buffer().is_empty());
@@ -201,22 +198,21 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
 
     /// Returns the number of bytes the internal buffer can hold at once.
     // # Examples
-    //
-    // ```no_run
-    // use std::fs::File;
-    //
-    // use io_core::io::{ArrayBufReader, BufRead};
-    //
-    // fn main() -> io_core::io::Result<()> {
-    //     let f = File::open("log.txt")?;
-    //     let mut reader = ArrayBufReader::<_, 1024>::new(f);
-    //
-    //     let capacity = reader.capacity();
-    //     let buffer = reader.fill_buf()?;
-    //     assert!(buffer.len() <= capacity);
-    //     Ok(())
-    // }
-    // ```
+    /// ```no_run
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{ArrayBufReader, BufRead};
+    ///
+    /// fn main() -> io_core::io::Result<()> {
+    ///     let f = File::open("log.txt")?;
+    ///     let mut reader = ArrayBufReader::<_, 1024>::new(f);
+    ///
+    ///     let capacity = reader.capacity();
+    ///     let buffer = reader.fill_buf()?;
+    ///     assert!(buffer.len() <= capacity);
+    ///     Ok(())
+    /// }
+    /// ```
     pub const fn capacity(&self) -> usize {
         self.buf.capacity()
     }
@@ -226,20 +222,19 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
     /// Note that any leftover data in the internal buffer is lost. Therefore,
     /// a following read from the underlying reader may lead to data loss.
     // # Examples
-    //
-    // ```no_run
-    // use std::fs::File;
-    //
-    // use io_core::io::ArrayBufReader;
-    //
-    // fn main() -> io_core::io::Result<()> {
-    //     let f1 = File::open("log.txt")?;
-    //     let reader: ArrayBufReader<_, 1024> = ArrayBufReader::new(f1);
-    //
-    //     let f2 = reader.into_inner();
-    //     Ok(())
-    // }
-    // ```
+    /// ```no_run
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::ArrayBufReader;
+    ///
+    /// fn main() -> io_core::io::Result<()> {
+    ///     let f1 = File::open("log.txt")?;
+    ///     let reader: ArrayBufReader<_, 1024> = ArrayBufReader::new(f1);
+    ///
+    ///     let f2 = reader.into_inner();
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn into_inner(self) -> R
     where
         R: Sized,
@@ -455,7 +450,7 @@ impl<R: ?Sized + Seek, const N: usize> Seek for ArrayBufReader<R, N> {
     /// [`ArrayBufReader::into_inner()`] immediately after a seek yields the underlying reader
     /// at the same position.
     ///
-    /// To seek without discarding the internal buffer, use [`BufReader::seek_relative`].
+    /// To seek without discarding the internal buffer, use [`ArrayBufReader::seek_relative`].
     ///
     /// See [`std::io::Seek`] for more details.
     ///
@@ -506,24 +501,24 @@ impl<R: ?Sized + Seek, const N: usize> Seek for ArrayBufReader<R, N> {
     /// has an incorrect implementation of [`Seek::stream_position`], or if the
     /// position has gone out of sync due to calling [`Seek::seek`] directly on
     /// the underlying reader.
-    // # Example
-    //
-    // ```no_run
-    // use std::fs::File;
-    //
-    // use io_core::io::{self, ArrayBufReader, BufRead, Seek};
-    //
-    // fn main() -> io::Result<()> {
-    //     let mut f = ArrayBufReader::<_, 1024>::new(File::open("foo.txt")?);
-    //
-    //     let before = f.stream_position()?;
-    //     f.read_line(&mut String::new())?;
-    //     let after = f.stream_position()?;
-    //
-    //     println!("The first line was {} bytes long", after - before);
-    //     Ok(())
-    // }
-    // ```
+    /// # Example
+    ///
+    /// ```no_run
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, ArrayBufReader, BufRead, Seek};
+    ///
+    /// fn main() -> io::Result<()> {
+    ///     let mut f = ArrayBufReader::<_, 1024>::new(File::open("foo.txt")?);
+    ///
+    ///     let before = f.stream_position()?;
+    ///     f.read_line(&mut String::new())?;
+    ///     let after = f.stream_position()?;
+    ///
+    ///     println!("The first line was {} bytes long", after - before);
+    ///     Ok(())
+    /// }
+    /// ```
     fn stream_position(&mut self) -> io::Result<u64> {
         let remainder = (self.buf.filled() - self.buf.pos()) as u64;
         self.inner.stream_position().map(|pos| {

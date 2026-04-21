@@ -23,12 +23,11 @@ use crate::io::{self, buffered::LineWriterShim, BufWriter, IntoInnerError, IoSli
 /// reducing the number of actual writes to the file.
 ///
 /// ```no_run
-/// use std::{
-///     fs::{self, File},
-///     io::{prelude::*, LineWriter},
-/// };
+/// use std::fs::{self, File};
 ///
-/// fn main() -> std::io::Result<()> {
+/// use io_core::io::{self, LineWriter, Write};
+///
+/// fn main() -> io::Result<()> {
 ///     let road_not_taken = b"I shall be telling this with a sigh
 /// Somewhere ages and ages hence:
 /// Two roads diverged in a wood, and I -
@@ -74,13 +73,15 @@ impl<W: Write> LineWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
-    ///     let file = LineWriter::new(file);
-    ///     Ok(())
-    /// }
+    /// use io_core::io::{self, LineWriter};
+    ///
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
+    /// let file = LineWriter::new(file);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn new(inner: W) -> LineWriter<W> {
         // Lines typically aren't that long, don't use a giant buffer
@@ -93,13 +94,15 @@ impl<W: Write> LineWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
-    ///     let file = LineWriter::with_capacity(100, file);
-    ///     Ok(())
-    /// }
+    /// use io_core::io::{self, LineWriter};
+    ///
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
+    /// let file = LineWriter::with_capacity(100, file);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn with_capacity(capacity: usize, inner: W) -> LineWriter<W> {
         LineWriter {
@@ -115,16 +118,18 @@ impl<W: Write> LineWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
-    ///     let mut file = LineWriter::new(file);
+    /// use io_core::io::{self, LineWriter};
     ///
-    ///     // we can use reference just like file
-    ///     let reference = file.get_mut();
-    ///     Ok(())
-    /// }
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
+    /// let mut file = LineWriter::new(file);
+    ///
+    /// // we can use reference just like file
+    /// let reference = file.get_mut();
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut()
@@ -141,16 +146,18 @@ impl<W: Write> LineWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
+    /// use io_core::io::{self, LineWriter};
     ///
-    ///     let writer: LineWriter<File> = LineWriter::new(file);
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
     ///
-    ///     let file: File = writer.into_inner()?;
-    ///     Ok(())
-    /// }
+    /// let writer: LineWriter<File> = LineWriter::new(file);
+    ///
+    /// let file: File = writer.into_inner()?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn into_inner(self) -> Result<W, IntoInnerError<LineWriter<W>>> {
         self.inner
@@ -165,15 +172,17 @@ impl<W: ?Sized + Write> LineWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
-    ///     let file = LineWriter::new(file);
+    /// use io_core::io::{self, LineWriter};
     ///
-    ///     let reference = file.get_ref();
-    ///     Ok(())
-    /// }
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
+    /// let file = LineWriter::new(file);
+    ///
+    /// let reference = file.get_ref();
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn get_ref(&self) -> &W {
         self.inner.get_ref()

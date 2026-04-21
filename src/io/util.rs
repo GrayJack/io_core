@@ -37,7 +37,7 @@ pub struct Empty;
 /// # Examples
 ///
 /// ```rust
-/// use std::io::{self, Write};
+/// use io_core::io::{self, Write};
 ///
 /// let buffer = vec![1, 2, 3, 5, 8];
 /// let num_bytes = io::empty().write(&buffer).unwrap();
@@ -46,7 +46,7 @@ pub struct Empty;
 ///
 ///
 /// ```rust
-/// use std::io::{self, Read};
+/// use io_core::io::{self, Read};
 ///
 /// let mut buffer = String::new();
 /// io::empty().read_to_string(&mut buffer).unwrap();
@@ -259,7 +259,7 @@ pub struct Repeat {
 /// # Examples
 ///
 /// ```
-/// use std::io::{self, Read};
+/// use io_core::io::{self, Read};
 ///
 /// let mut buffer = [0; 3];
 /// io::repeat(0b101).read_exact(&mut buffer).unwrap();
@@ -362,7 +362,7 @@ pub struct Sink;
 /// # Examples
 ///
 /// ```rust
-/// use std::io::{self, Write};
+/// use io_core::io::{self, Write};
 ///
 /// let buffer = vec![1, 2, 3, 5, 8];
 /// let num_bytes = io::sink().write(&buffer).unwrap();

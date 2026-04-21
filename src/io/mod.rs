@@ -42,7 +42,7 @@ pub use copy::copy;
 
 mod impls;
 
-#[cfg(any(test, feature = "std"))]
+#[cfg(feature = "std")]
 mod std_impls;
 
 const DEFAULT_BUF_SIZE: usize = crate::sys::io::DEFAULT_BUF_SIZE;
@@ -373,7 +373,9 @@ pub(crate) fn default_write_fmt<W: Write + ?Sized>(
 /// [`File`]s implement `Read`:
 ///
 /// ```no_run
-/// use std::{fs::File, io, io::prelude::*};
+/// use std::fs::File;
+///
+/// use io_core::io::{self, Read};
 ///
 /// fn main() -> io::Result<()> {
 ///     let mut f = File::open("foo.txt")?;
@@ -398,8 +400,8 @@ pub(crate) fn default_write_fmt<W: Write + ?Sized>(
 /// Read from [`&str`] because [`&[u8]`][prim@slice] implements `Read`:
 ///
 /// ```no_run
-/// # use std::io;
-/// use std::io::prelude::*;
+/// # use io_core::io;
+/// use io_core::io::Read;
 ///
 /// fn main() -> io::Result<()> {
 ///     let mut b = "This string will be read".as_bytes();
@@ -416,7 +418,7 @@ pub(crate) fn default_write_fmt<W: Write + ?Sized>(
 /// [`read()`]: Read::read
 /// [`&str`]: prim@str
 /// [`std::io`]: self
-/// [`File`]: crate::fs::File
+/// [`File`]: std::fs::File
 pub trait Read {
     /// Pull some bytes from this source into the specified buffer, returning
     /// how many bytes were read.
@@ -460,7 +462,7 @@ pub trait Read {
     /// before calling `read`. Calling `read` with an uninitialized `buf` (of the kind one
     /// obtains via [`MaybeUninit<T>`]) is not safe, and can lead to undefined behavior.
     ///
-    /// [`MaybeUninit<T>`]: crate::mem::MaybeUninit
+    /// [`MaybeUninit<T>`]: core::mem::MaybeUninit
     ///
     /// # Errors
     ///
@@ -476,11 +478,13 @@ pub trait Read {
     /// [`File`]s implement `Read`:
     ///
     /// [`Ok(n)`]: Ok
-    /// [`File`]: crate::fs::File
-    /// [`TcpStream`]: crate::net::TcpStream
+    /// [`File`]: std::fs::File
+    /// [`TcpStream`]: std::net::TcpStream
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = File::open("foo.txt")?;
@@ -545,10 +549,12 @@ pub trait Read {
     ///
     /// [`read()`]: Read::read
     /// [`Ok(0)`]: Ok
-    /// [`File`]: crate::fs::File
+    /// [`File`]: std::fs::File
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = File::open("foo.txt")?;
@@ -563,7 +569,7 @@ pub trait Read {
     /// (See also the [`std::fs::read`] convenience function for reading from a
     /// file.)
     ///
-    /// [`std::fs::read`]: crate::fs::read
+    /// [`std::fs::read`]: std::fs::read
     ///
     /// ## Implementing `read_to_end`
     ///
@@ -573,7 +579,7 @@ pub trait Read {
     /// situations gracefully.
     ///
     /// ```no_run
-    /// # use std::io::{self, BufRead};
+    /// # use io_core::io::{self, BufRead};
     /// # struct Example { example_datasource: io::Empty } impl Example {
     /// # fn get_some_data_for_the_example(&self) -> &'static [u8] { &[] }
     /// fn read_to_end(&mut self, dest_vec: &mut Vec<u8>) -> io::Result<usize> {
@@ -609,7 +615,7 @@ pub trait Read {
     ///
     /// [`read`]: Read::read
     ///
-    /// [`Vec::try_reserve`]: crate::vec::Vec::try_reserve
+    /// [`Vec::try_reserve`]: alloc::vec::Vec::try_reserve
     #[cfg(feature = "alloc")]
     fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize> {
         default_read_to_end(self, buf, None)
@@ -633,10 +639,12 @@ pub trait Read {
     ///
     /// [`File`]s implement `Read`:
     ///
-    /// [`File`]: crate::fs::File
+    /// [`File`]: std::fs::File
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = File::open("foo.txt")?;
@@ -663,7 +671,7 @@ pub trait Read {
     ///
     /// [`read`]: Read::read
     ///
-    /// [`std::fs::read_to_string`]: crate::fs::read_to_string
+    /// [`std::fs::read_to_string`]: std::fs::read_to_string
     #[cfg(feature = "alloc")]
     fn read_to_string(&mut self, buf: &mut String) -> Result<usize> {
         default_read_to_string(self, buf, None)
@@ -701,10 +709,12 @@ pub trait Read {
     /// [`File`]s implement `Read`:
     ///
     /// [`read`]: Read::read
-    /// [`File`]: crate::fs::File
+    /// [`File`]: std::fs::File
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = File::open("foo.txt")?;
@@ -763,10 +773,12 @@ pub trait Read {
     ///
     /// [`File`]s implement `Read`:
     ///
-    /// [`File`]: crate::fs::File
+    /// [`File`]: std::fs::File
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::Read};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = File::open("foo.txt")?;
@@ -808,16 +820,14 @@ pub trait Read {
     /// [`File`]s implement `Read`:
     ///
     /// [`Item`]: Iterator::Item
-    /// [`File`]: crate::fs::File "fs::File"
-    /// [Result]: crate::result::Result "Result"
+    /// [`File`]: std::fs::File "fs::File"
+    /// [Result]: core::result::Result "Result"
     /// [io::Error]: self::Error "io::Error"
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::File,
-    ///     io,
-    ///     io::{prelude::*, BufReader},
-    /// };
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, BufReader, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let f = BufReader::new(File::open("foo.txt")?);
@@ -845,10 +855,12 @@ pub trait Read {
     ///
     /// [`File`]s implement `Read`:
     ///
-    /// [`File`]: crate::fs::File
+    /// [`File`]: std::fs::File
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let f1 = File::open("foo.txt")?;
@@ -885,12 +897,14 @@ pub trait Read {
     ///
     /// [`File`]s implement `Read`:
     ///
-    /// [`File`]: crate::fs::File
+    /// [`File`]: std::fs::File
     /// [`Ok(0)`]: Ok
     /// [`read()`]: Read::read
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let f = File::open("foo.txt")?;
@@ -926,10 +940,9 @@ pub trait Read {
     /// number of bytes, it returns an error of the kind [`ErrorKind::UnexpectedEof`].
     ///
     /// ```
-    /// #![feature(read_array)]
-    /// use std::io::{prelude::*, Cursor};
+    /// use io_core::io::{self, Cursor, Read};
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// fn main() -> io::Result<()> {
     ///     let mut buf = Cursor::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2]);
     ///     let x = u64::from_le_bytes(buf.read_array()?);
     ///     let y = u32::from_be_bytes(buf.read_array()?);
@@ -990,9 +1003,9 @@ pub trait Read {
 /// # Examples
 ///
 /// ```no_run
-/// # use std::io;
+/// # use io_core::io;
 /// fn main() -> io::Result<()> {
-///     let stdin = io::read_to_string(io::stdin())?;
+///     let stdin = io::read_to_string(std::io::stdin())?;
 ///     println!("Stdin was:");
 ///     println!("{stdin}");
 ///     Ok(())
@@ -1059,7 +1072,9 @@ impl<'a> IoSliceMut<'a> {
     /// # Examples
     ///
     /// ```
-    /// use std::{io::IoSliceMut, ops::Deref};
+    /// use std::ops::Deref;
+    ///
+    /// use io_core::io::IoSliceMut;
     ///
     /// let mut data = [1; 8];
     /// let mut buf = IoSliceMut::new(&mut data);
@@ -1089,7 +1104,9 @@ impl<'a> IoSliceMut<'a> {
     /// # Examples
     ///
     /// ```
-    /// use std::{io::IoSliceMut, ops::Deref};
+    /// use std::ops::Deref;
+    ///
+    /// use io_core::io::IoSliceMut;
     ///
     /// let mut buf1 = [1; 8];
     /// let mut buf2 = [2; 16];
@@ -1133,8 +1150,7 @@ impl<'a> IoSliceMut<'a> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(io_slice_as_bytes)]
-    /// use std::io::IoSliceMut;
+    /// use io_core::io::IoSliceMut;
     ///
     /// let mut data = *b"abcdef";
     /// let io_slice = IoSliceMut::new(&mut data);
@@ -1206,7 +1222,9 @@ impl<'a> IoSlice<'a> {
     /// # Examples
     ///
     /// ```
-    /// use std::{io::IoSlice, ops::Deref};
+    /// use std::ops::Deref;
+    ///
+    /// use io_core::io::IoSlice;
     ///
     /// let data = [1; 8];
     /// let mut buf = IoSlice::new(&data);
@@ -1236,8 +1254,9 @@ impl<'a> IoSlice<'a> {
     /// # Examples
     ///
     /// ```
-    /// use std::io::IoSlice;
     /// use std::ops::Deref;
+    ///
+    /// use io_core::io::IoSlice;
     ///
     /// let buf1 = [1; 8];
     /// let buf2 = [2; 16];
@@ -1286,8 +1305,7 @@ impl<'a> IoSlice<'a> {
     /// # Examples
     ///
     /// ```
-    /// #![feature(io_slice_as_bytes)]
-    /// use std::io::IoSlice;
+    /// use io_core::io::IoSlice;
     ///
     /// let data = b"abcdef";
     ///
@@ -1336,9 +1354,11 @@ impl<'a> Deref for IoSlice<'a> {
 /// # Examples
 ///
 /// ```no_run
-/// use std::{fs::File, io::prelude::*};
+/// use std::fs::File;
 ///
-/// fn main() -> std::io::Result<()> {
+/// use io_core::io::{self, Write};
+///
+/// fn main() -> io::Result<()> {
 ///     let data = b"some bytes";
 ///
 ///     let mut pos = 0;
@@ -1389,9 +1409,11 @@ pub trait Write {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::prelude::*};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, Write};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let mut buffer = File::create("foo.txt")?;
     ///
     ///     // Writes some prefix of the byte string, not necessarily all of it.
@@ -1415,12 +1437,11 @@ pub trait Write {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::File,
-    ///     io::{prelude::*, IoSlice},
-    /// };
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, IoSlice, Write};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let data1 = [1; 8];
     ///     let data2 = [15; 8];
     ///     let io_slice1 = IoSlice::new(&data1);
@@ -1464,12 +1485,11 @@ pub trait Write {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::File,
-    ///     io::{prelude::*, BufWriter},
-    /// };
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, BufWriter, Write};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let mut buffer = BufWriter::new(File::create("foo.txt")?);
     ///
     ///     buffer.write_all(b"some bytes")?;
@@ -1500,9 +1520,11 @@ pub trait Write {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::prelude::*};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, Write};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let mut buffer = File::create("foo.txt")?;
     ///
     ///     buffer.write_all(b"some bytes")?;
@@ -1552,10 +1574,9 @@ pub trait Write {
     /// # Examples
     ///
     /// ```
-    /// #![feature(write_all_vectored)]
-    /// # fn main() -> std::io::Result<()> {
+    /// # fn main() -> io_core::io::Result<()> {
     ///
-    /// use std::io::{IoSlice, Write};
+    /// use io_core::io::{IoSlice, Write};
     ///
     /// let mut writer = Vec::new();
     /// let bufs = &mut [IoSlice::new(&[1]), IoSlice::new(&[2, 3]), IoSlice::new(&[4, 5, 6])];
@@ -1605,9 +1626,11 @@ pub trait Write {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::prelude::*};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, Write};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let mut buffer = File::create("foo.txt")?;
     ///
     ///     // this call
@@ -1641,9 +1664,11 @@ pub trait Write {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::Write};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
+    /// use io_core::io::{self, Write};
+    ///
+    /// fn main() -> io::Result<()> {
     ///     let mut buffer = File::create("foo.txt")?;
     ///
     ///     let reference = buffer.by_ref();
@@ -1671,14 +1696,12 @@ pub trait Write {
 ///
 /// [`File`]s implement `Seek`:
 ///
-/// [`File`]: crate::fs::File
+/// [`File`]: std::fs::File
 ///
 /// ```no_run
-/// use std::{
-///     fs::File,
-///     io,
-///     io::{prelude::*, SeekFrom},
-/// };
+/// use std::fs::File;
+///
+/// use io_core::io::{self, Seek, SeekFrom};
 ///
 /// fn main() -> io::Result<()> {
 ///     let mut f = File::open("foo.txt")?;
@@ -1716,10 +1739,9 @@ pub trait Seek {
     /// # Example
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::OpenOptions,
-    ///     io::{Read, Seek, Write},
-    /// };
+    /// use std::fs::OpenOptions;
+    ///
+    /// use io_core::io::{self, Read, Seek, SeekFrom, Write};
     ///
     /// let mut f = OpenOptions::new().write(true).read(true).create(true).open("foo.txt")?;
     ///
@@ -1730,7 +1752,7 @@ pub trait Seek {
     /// let mut buf = String::new();
     /// f.read_to_string(&mut buf)?;
     /// assert_eq!(&buf, hello);
-    /// # std::io::Result::Ok(())
+    /// # io_core::io::Result::Ok(())
     /// ```
     fn rewind(&mut self) -> Result<()> {
         self.seek(SeekFrom::Start(0))?;
@@ -1757,11 +1779,9 @@ pub trait Seek {
     /// # Example
     ///
     /// ```no_run
-    /// #![feature(seek_stream_len)]
-    /// use std::{
-    ///     fs::File,
-    ///     io::{self, Seek},
-    /// };
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Seek};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = File::open("foo.txt")?;
@@ -1782,10 +1802,9 @@ pub trait Seek {
     /// # Example
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::File,
-    ///     io::{self, BufRead, BufReader, Seek},
-    /// };
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, BufRead, BufReader, Seek, SeekFrom};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = BufReader::new(File::open("foo.txt")?);
@@ -1811,10 +1830,9 @@ pub trait Seek {
     /// # Example
     ///
     /// ```no_run
-    /// use std::{
-    ///     fs::File,
-    ///     io::{self, Seek},
-    /// };
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Seek};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut f = File::open("foo.txt")?;
@@ -1930,13 +1948,13 @@ fn skip_until<R: BufRead + ?Sized>(r: &mut R, delim: u8) -> Result<usize> {
 /// A locked standard input implements `BufRead`:
 ///
 /// ```no_run
-/// use std::{io, io::prelude::*};
+/// use io_core::io::{BufRead, Read};
 ///
-/// let stdin = io::stdin();
+/// let stdin = std::io::stdin();
 /// for line in stdin.lock().lines() {
 ///     println!("{}", line?);
 /// }
-/// # std::io::Result::Ok(())
+/// # io_core::io::Result::Ok(())
 /// ```
 ///
 /// If you have something that implements [`Read`], you can use the [`BufReader`
@@ -1945,15 +1963,14 @@ fn skip_until<R: BufRead + ?Sized>(r: &mut R, delim: u8) -> Result<usize> {
 /// For example, [`File`] implements [`Read`], but not `BufRead`.
 /// [`BufReader`] to the rescue!
 ///
-/// [`File`]: crate::fs::File
+/// [`File`]: std::fs::File
 /// [`read_line`]: BufRead::read_line
 /// [`lines`]: BufRead::lines
 ///
 /// ```no_run
-/// use std::{
-///     fs::File,
-///     io::{self, prelude::*, BufReader},
-/// };
+/// use std::fs::File;
+///
+/// use io_core::io::{self, BufRead, BufReader, Read};
 ///
 /// fn main() -> io::Result<()> {
 ///     let f = File::open("foo.txt")?;
@@ -1987,9 +2004,9 @@ pub trait BufRead: Read {
     /// A locked standard input implements `BufRead`:
     ///
     /// ```no_run
-    /// use std::{io, io::prelude::*};
+    /// use io_core::io::{self, BufRead, Read};
     ///
-    /// let stdin = io::stdin();
+    /// let stdin = std::io::stdin();
     /// let mut stdin = stdin.lock();
     ///
     /// let buffer = stdin.fill_buf()?;
@@ -2000,7 +2017,7 @@ pub trait BufRead: Read {
     /// // mark the bytes we worked with as read
     /// let length = buffer.len();
     /// stdin.consume(length);
-    /// # std::io::Result::Ok(())
+    /// # io_core::io::Result::Ok(())
     /// ```
     fn fill_buf(&mut self) -> Result<&[u8]>;
 
@@ -2037,10 +2054,9 @@ pub trait BufRead: Read {
     /// Examples
     ///
     /// ```
-    /// #![feature(buf_read_has_data_left)]
-    /// use std::{io, io::prelude::*};
+    /// use io_core::io::{self, BufRead, Read};
     ///
-    /// let stdin = io::stdin();
+    /// let stdin = std::io::stdin();
     /// let mut stdin = stdin.lock();
     ///
     /// while stdin.has_data_left()? {
@@ -2049,7 +2065,7 @@ pub trait BufRead: Read {
     ///     // work with line
     ///     println!("{line:?}");
     /// }
-    /// # std::io::Result::Ok(())
+    /// # io_core::io::Result::Ok(())
     /// ```
     fn has_data_left(&mut self) -> Result<bool> {
         self.fill_buf().map(|b| !b.is_empty())
@@ -2079,12 +2095,12 @@ pub trait BufRead: Read {
     ///
     /// # Examples
     ///
-    /// [`std::io::Cursor`][`Cursor`] is a type that implements `BufRead`. In
+    /// [`io::Cursor`][`Cursor`] is a type that implements `BufRead`. In
     /// this example, we use [`Cursor`] to read all the bytes in a byte slice
     /// in hyphen delimited segments:
     ///
     /// ```
-    /// use std::io::{self, BufRead};
+    /// use io_core::io::{self, BufRead};
     ///
     /// let mut cursor = io::Cursor::new(b"lorem-ipsum");
     /// let mut buf = vec![];
@@ -2138,12 +2154,12 @@ pub trait BufRead: Read {
     ///
     /// # Examples
     ///
-    /// [`std::io::Cursor`][`Cursor`] is a type that implements `BufRead`. In
+    /// [`io::Cursor`][`Cursor`] is a type that implements `BufRead`. In
     /// this example, we use [`Cursor`] to read some NUL-terminated information
     /// about Ferris from a binary string, skipping the fun fact:
     ///
     /// ```
-    /// use std::io::{self, BufRead};
+    /// use io_core::io::{self, BufRead};
     ///
     /// let mut cursor = io::Cursor::new(b"Ferris\0Likes long walks on the beach\0Crustacean\0!");
     ///
@@ -2209,11 +2225,11 @@ pub trait BufRead: Read {
     ///
     /// # Examples
     ///
-    /// [`std::io::Cursor`][`Cursor`] is a type that implements `BufRead`. In
+    /// [`io::Cursor`][`Cursor`] is a type that implements `BufRead`. In
     /// this example, we use [`Cursor`] to read all the lines in a byte slice:
     ///
     /// ```
-    /// use std::io::{self, BufRead};
+    /// use io_core::io::{self, BufRead};
     ///
     /// let mut cursor = io::Cursor::new(b"foo\nbar");
     /// let mut buf = String::new();
@@ -2258,12 +2274,12 @@ pub trait BufRead: Read {
     ///
     /// # Examples
     ///
-    /// [`std::io::Cursor`][`Cursor`] is a type that implements `BufRead`. In
+    /// [`io::Cursor`][`Cursor`] is a type that implements `BufRead`. In
     /// this example, we use [`Cursor`] to iterate over all hyphen delimited
     /// segments in a byte slice
     ///
     /// ```
-    /// use std::io::{self, BufRead};
+    /// use io_core::io::{self, BufRead};
     ///
     /// let cursor = io::Cursor::new(b"lorem-ipsum-dolor");
     ///
@@ -2298,7 +2314,7 @@ pub trait BufRead: Read {
     /// slice.
     ///
     /// ```
-    /// use std::io::{self, BufRead};
+    /// use io_core::io::{self, BufRead};
     ///
     /// let cursor = io::Cursor::new(b"lorem\nipsum\r\ndolor");
     ///
@@ -2339,7 +2355,9 @@ impl<T, U> Chain<T, U> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut foo_file = File::open("foo.txt")?;
@@ -2363,7 +2381,9 @@ impl<T, U> Chain<T, U> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut foo_file = File::open("foo.txt")?;
@@ -2387,7 +2407,9 @@ impl<T, U> Chain<T, U> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut foo_file = File::open("foo.txt")?;
@@ -2542,7 +2564,9 @@ impl<T> Take<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let f = File::open("foo.txt")?;
@@ -2571,7 +2595,9 @@ impl<T> Take<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let f = File::open("foo.txt")?;
@@ -2594,7 +2620,9 @@ impl<T> Take<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut file = File::open("foo.txt")?;
@@ -2620,7 +2648,9 @@ impl<T> Take<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut file = File::open("foo.txt")?;
@@ -2646,7 +2676,9 @@ impl<T> Take<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io, io::prelude::*};
+    /// use std::fs::File;
+    ///
+    /// use io_core::io::{self, Read};
     ///
     /// fn main() -> io::Result<()> {
     ///     let mut file = File::open("foo.txt")?;

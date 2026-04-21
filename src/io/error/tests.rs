@@ -1,5 +1,5 @@
 use super::{Custom, Error, ErrorData, ErrorKind, Repr, SimpleMessage};
-use crate::const_error;
+use crate::io_const_error;
 
 use core::{assert_matches, error, fmt};
 
@@ -63,7 +63,7 @@ fn test_downcasting() {
 #[test]
 #[cfg(feature = "alloc")]
 fn test_const() {
-    const E: Error = const_error!(ErrorKind::NotFound, "hello");
+    const E: Error = io_const_error!(ErrorKind::NotFound, "hello");
 
     assert_eq!(E.kind(), ErrorKind::NotFound);
     assert_eq!(E.to_string(), "hello");
@@ -119,13 +119,13 @@ fn test_simple_message_packing() {
         }};
     }
 
-    let not_static = const_error!(Uncategorized, "not a constant!");
+    let not_static = io_const_error!(Uncategorized, "not a constant!");
     check_simple_msg!(not_static, Uncategorized, "not a constant!");
 
-    const CONST: Error = const_error!(NotFound, "definitely a constant!");
+    const CONST: Error = io_const_error!(NotFound, "definitely a constant!");
     check_simple_msg!(CONST, NotFound, "definitely a constant!");
 
-    static STATIC: Error = const_error!(BrokenPipe, "a constant, sort of!");
+    static STATIC: Error = io_const_error!(BrokenPipe, "a constant, sort of!");
     check_simple_msg!(STATIC, BrokenPipe, "a constant, sort of!");
 }
 

@@ -19,8 +19,8 @@ pub use self::{
     linewritershim::ArrayLineWriterShim,
 };
 
-/// An error returned by [`BufWriter::into_inner`] which combines an error that
-/// happened while writing out the buffer, and the buffered writer object
+/// An error returned by [`BufWriter::into_inner`] or [`ArrayBufWriter::into_inner`] which combines
+/// an error that happened while writing out the buffer, and the buffered writer object
 /// which may be used to recover from the condition.
 ///
 /// # Examples
@@ -42,6 +42,8 @@ pub use self::{
 ///     },
 /// };
 /// ```
+///
+/// [`BufWriter::into_inner`]: crate::io::BufWriter::into_inner
 #[derive(Debug)]
 pub struct IntoInnerError<W>(W, Error);
 
@@ -58,8 +60,8 @@ impl<W> IntoInnerError<W> {
         IntoInnerError::new(f(writer), error)
     }
 
-    /// Returns the error which caused the call to [`BufWriter::into_inner()`]
-    /// to fail.
+    /// Returns the error which caused the call to [`BufWriter::into_inner()`] (or
+    /// [`ArrayBufWriter::into_inner()`]) to fail.
     ///
     /// This error was returned when attempting to write the internal buffer.
     ///
@@ -86,6 +88,8 @@ impl<W> IntoInnerError<W> {
     ///     },
     /// };
     /// ```
+    ///
+    /// [`BufWriter::into_inner()`]: crate::io::BufWriter::into_inner
     pub fn error(&self) -> &Error {
         &self.1
     }
@@ -124,8 +128,8 @@ impl<W> IntoInnerError<W> {
     }
 
     /// Consumes the [`IntoInnerError`] and returns the error which caused the call to
-    /// [`BufWriter::into_inner()`] to fail.  Unlike `error`, this can be used to
-    /// obtain ownership of the underlying error.
+    /// [`BufWriter::into_inner()`] (or [`ArrayBufWriter::into_inner()`]) to fail.  Unlike `error`,
+    /// this can be used to obtain ownership of the underlying error.
     ///
     /// # Example
     /// ```
@@ -138,12 +142,15 @@ impl<W> IntoInnerError<W> {
     /// let err = into_inner_err.into_error();
     /// assert_eq!(err.kind(), ErrorKind::WriteZero);
     /// ```
+    ///
+    /// [`BufWriter::into_inner()`]: crate::io::BufWriter::into_inner
     pub fn into_error(self) -> Error {
         self.1
     }
 
     /// Consumes the [`IntoInnerError`] and returns the error which caused the call to
-    /// [`BufWriter::into_inner()`] to fail, and the underlying writer.
+    /// [`BufWriter::into_inner()`] (or [`ArrayBufWriter::into_inner()`]) to fail, and the
+    /// underlying writer.
     ///
     /// This can be used to simply obtain ownership of the underlying error; it can also be used for
     /// advanced error recovery.
@@ -160,6 +167,8 @@ impl<W> IntoInnerError<W> {
     /// assert_eq!(err.kind(), ErrorKind::WriteZero);
     /// assert_eq!(recovered_writer.buffer(), b"t be actually written");
     /// ```
+    ///
+    /// [`BufWriter::into_inner()`]: crate::io::BufWriter::into_inner
     pub fn into_parts(self) -> (Error, W) {
         (self.1, self.0)
     }

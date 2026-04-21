@@ -54,7 +54,7 @@ impl Buffer {
                 filled: 0,
                 initialized: false,
             }),
-            Err(_) => Err(crate::const_error!(
+            Err(_) => Err(crate::io_const_error!(
                 ErrorKind::OutOfMemory,
                 "failed to allocate read buffer"
             )),

@@ -36,7 +36,9 @@ use crate::io::{
 /// Let's write the numbers one through ten to a [`TcpStream`]:
 ///
 /// ```no_run
-/// use std::{io::prelude::*, net::TcpStream};
+/// use std::net::TcpStream;
+///
+/// use io_core::io::Write;
 ///
 /// let mut stream = TcpStream::connect("127.0.0.1:34254").unwrap();
 ///
@@ -50,10 +52,9 @@ use crate::io::{
 /// `BufWriter<W>`:
 ///
 /// ```no_run
-/// use std::{
-///     io::{prelude::*, BufWriter},
-///     net::TcpStream,
-/// };
+/// use std::net::TcpStream;
+///
+/// use io_core::io::{BufWriter, Write};
 ///
 /// let mut stream = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
 ///
@@ -67,8 +68,8 @@ use crate::io::{
 /// together by the buffer and will all be written out in one system call when
 /// the `stream` is flushed.
 ///
-/// [`TcpStream::write`]: crate::net::TcpStream::write
-/// [`TcpStream`]: crate::net::TcpStream
+/// [`TcpStream::write`]: std::net::TcpStream::write
+/// [`TcpStream`]: std::net::TcpStream
 /// [`flush`]: BufWriter::flush
 pub struct BufWriter<W: ?Sized + Write> {
     // The buffer. Avoid using this like a normal `Vec` in common code paths.
@@ -90,7 +91,9 @@ impl<W: Write> BufWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
+    ///
+    /// use io_core::io::BufWriter;
     ///
     /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     /// ```
@@ -101,7 +104,7 @@ impl<W: Write> BufWriter<W> {
     #[cfg(feature = "nightly")]
     pub(crate) fn try_new_buffer() -> io::Result<Vec<u8>> {
         Vec::try_with_capacity(DEFAULT_BUF_SIZE).map_err(|_| {
-            crate::const_error!(ErrorKind::OutOfMemory, "failed to allocate write buffer")
+            crate::io_const_error!(ErrorKind::OutOfMemory, "failed to allocate write buffer")
         })
     }
 
@@ -120,7 +123,9 @@ impl<W: Write> BufWriter<W> {
     /// Creating a buffer with a buffer of at least a hundred bytes.
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
+    ///
+    /// use io_core::io::BufWriter;
     ///
     /// let stream = TcpStream::connect("127.0.0.1:34254").unwrap();
     /// let mut buffer = BufWriter::with_capacity(100, stream);
@@ -144,7 +149,9 @@ impl<W: Write> BufWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
+    ///
+    /// use io_core::io::BufWriter;
     ///
     /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
@@ -170,7 +177,7 @@ impl<W: Write> BufWriter<W> {
     /// # Examples
     ///
     /// ```
-    /// use std::io::{BufWriter, Write};
+    /// use io_core::io::{BufWriter, Write};
     ///
     /// let mut buffer = [0u8; 10];
     /// let mut stream = BufWriter::new(buffer.as_mut());
@@ -251,7 +258,7 @@ impl<W: ?Sized + Write> BufWriter<W> {
 
             match r {
                 Ok(0) => {
-                    return Err(crate::const_error!(
+                    return Err(crate::io_const_error!(
                         ErrorKind::WriteZero,
                         "failed to write the buffered data",
                     ));
@@ -284,7 +291,9 @@ impl<W: ?Sized + Write> BufWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
+    ///
+    /// use io_core::io::BufWriter;
     ///
     /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
@@ -302,7 +311,9 @@ impl<W: ?Sized + Write> BufWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
+    ///
+    /// use io_core::io::BufWriter;
     ///
     /// let mut buffer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
@@ -318,7 +329,9 @@ impl<W: ?Sized + Write> BufWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
+    ///
+    /// use io_core::io::BufWriter;
     ///
     /// let buf_writer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
@@ -346,7 +359,9 @@ impl<W: ?Sized + Write> BufWriter<W> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{io::BufWriter, net::TcpStream};
+    /// use std::net::TcpStream;
+    ///
+    /// use io_core::io::BufWriter;
     ///
     /// let buf_writer = BufWriter::new(TcpStream::connect("127.0.0.1:34254").unwrap());
     ///
@@ -465,10 +480,9 @@ impl<W: ?Sized + Write> BufWriter<W> {
 /// # Example
 ///
 /// ```
-/// use std::{
-///     io::{self, BufWriter, Write},
-///     panic::{catch_unwind, AssertUnwindSafe},
-/// };
+/// use std::panic::{catch_unwind, AssertUnwindSafe};
+///
+/// use io_core::io::{self, BufWriter, Write};
 ///
 /// struct PanickingWriter;
 /// impl Write for PanickingWriter {

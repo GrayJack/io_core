@@ -7,13 +7,13 @@ use crate::io::{
 /// Wraps a writer and buffers output to it, flushing whenever a newline
 /// (`0x0a`, `'\n'`) is detected.
 ///
-/// The [`BufWriter`] struct wraps a writer and buffers its output.
+/// The [`ArrayBufWriter`] struct wraps a writer and buffers its output.
 /// But it only does this batched write when it goes out of scope, or when the
 /// internal buffer is full. Sometimes, you'd prefer to write each line as it's
 /// completed, rather than the entire buffer at once. Enter `LineWriter`. It
 /// does exactly that.
 ///
-/// Like [`BufWriter`], a `LineWriter`’s buffer will also be flushed when the
+/// Like [`ArrayBufWriter`], a `LineWriter`’s buffer will also be flushed when the
 /// `LineWriter` goes out of scope or when its internal buffer is full.
 ///
 /// If there's still a partial line in the buffer when the `LineWriter` is
@@ -25,12 +25,11 @@ use crate::io::{
 /// reducing the number of actual writes to the file.
 ///
 /// ```no_run
-/// use std::{
-///     fs::{self, File},
-///     io::{prelude::*, LineWriter},
-/// };
+/// use std::fs::{self, File};
 ///
-/// fn main() -> std::io::Result<()> {
+/// use io_core::io::{self, ArrayLineWriter, Write};
+///
+/// fn main() -> io::Result<()> {
 ///     let road_not_taken = b"I shall be telling this with a sigh
 /// Somewhere ages and ages hence:
 /// Two roads diverged in a wood, and I -
@@ -38,7 +37,7 @@ use crate::io::{
 /// And that has made all the difference.";
 ///
 ///     let file = File::create("poem.txt")?;
-///     let mut file = LineWriter::new(file);
+///     let mut file: ArrayLineWriter<_, 512> = ArrayLineWriter::new(file);
 ///
 ///     file.write_all(b"I shall be telling this with a sigh")?;
 ///
@@ -76,13 +75,15 @@ impl<W: Write, const N: usize> ArrayLineWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
-    ///     let file = LineWriter::new(file);
-    ///     Ok(())
-    /// }
+    /// use io_core::io::{self, ArrayLineWriter};
+    ///
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
+    /// let file: ArrayLineWriter<_, 512> = ArrayLineWriter::new(file);
+    /// Ok(())
+    /// # }
     /// ```
     pub fn new(inner: W) -> Self {
         Self {
@@ -100,14 +101,16 @@ impl<W: Write, const N: usize> ArrayLineWriter<W, N> {
     /// ```no_run
     /// use std::{fs::File, io::LineWriter};
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
-    ///     let mut file = LineWriter::new(file);
+    /// use io_core::io::{self, ArrayLineWriter};
     ///
-    ///     // we can use reference just like file
-    ///     let reference = file.get_mut();
-    ///     Ok(())
-    /// }
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
+    /// let mut file = ArrayLineWriter::<_, 512>::new(file);
+    ///
+    /// // we can use reference just like file
+    /// let reference = file.get_mut();
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut()
@@ -124,16 +127,18 @@ impl<W: Write, const N: usize> ArrayLineWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
+    /// use io_core::io::{self, ArrayLineWriter};
     ///
-    ///     let writer: LineWriter<File> = LineWriter::new(file);
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
     ///
-    ///     let file: File = writer.into_inner()?;
-    ///     Ok(())
-    /// }
+    /// let writer: ArrayLineWriter<File, 512> = ArrayLineWriter::new(file);
+    ///
+    /// let file: File = writer.into_inner()?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn into_inner(self) -> Result<W, IntoInnerError<ArrayLineWriter<W, N>>> {
         self.inner
@@ -148,15 +153,17 @@ impl<W: ?Sized + Write, const N: usize> ArrayLineWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
-    /// fn main() -> std::io::Result<()> {
-    ///     let file = File::create("poem.txt")?;
-    ///     let file = LineWriter::new(file);
+    /// use io_core::io::{self, ArrayLineWriter};
     ///
-    ///     let reference = file.get_ref();
-    ///     Ok(())
-    /// }
+    /// # fn main() -> io::Result<()> {
+    /// let file = File::create("poem.txt")?;
+    /// let file = ArrayLineWriter::<_, 512>::new(file);
+    ///
+    /// let reference = file.get_ref();
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn get_ref(&self) -> &W {
         self.inner.get_ref()

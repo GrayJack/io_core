@@ -24,7 +24,7 @@ use repr_unpacked::Repr;
 
 /// A specialized [`Result`] type for I/O operations.
 ///
-/// This type is broadly used across [`std::io`] for any operation which may
+/// This type is broadly used across [`io_core::io`] for any operation which may
 /// produce an error.
 ///
 /// This type alias is generally used to avoid writing out [`io::Error`] directly and
@@ -36,22 +36,22 @@ use repr_unpacked::Repr;
 /// will generally use `io::Result` instead of shadowing the [prelude]'s import
 /// of [`std::result::Result`][`Result`].
 ///
-/// [`std::io`]: crate::io
+/// [`io_core::io`]: crate::io
 /// [`io::Error`]: Error
-/// [`Result`]: crate::result::Result
-/// [prelude]: crate::prelude
+/// [`Result`]: core::result::Result
+/// [prelude]: std::prelude
 ///
 /// # Examples
 ///
 /// A convenience function that bubbles an `io::Result` to its caller:
 ///
 /// ```
-/// use std::io;
+/// use io_core::io;
 ///
 /// fn get_string() -> io::Result<String> {
 ///     let mut buffer = String::new();
 ///
-///     io::stdin().read_line(&mut buffer)?;
+///     std::io::stdin().read_line(&mut buffer)?;
 ///
 ///     Ok(buffer)
 /// }
@@ -82,28 +82,28 @@ impl fmt::Debug for Error {
 #[allow(dead_code)]
 impl Error {
     pub(crate) const INVALID_UTF8: Self =
-        crate::const_error!(ErrorKind::InvalidData, "stream did not contain valid UTF-8");
+        crate::io_const_error!(ErrorKind::InvalidData, "stream did not contain valid UTF-8");
     pub(crate) const NO_ADDRESSES: Self =
-        crate::const_error!(ErrorKind::InvalidInput, "could not resolve to any addresses");
+        crate::io_const_error!(ErrorKind::InvalidInput, "could not resolve to any addresses");
     pub(crate) const READ_EXACT_EOF: Self =
-        crate::const_error!(ErrorKind::UnexpectedEof, "failed to fill whole buffer");
-    pub(crate) const UNKNOWN_THREAD_COUNT: Self = crate::const_error!(
+        crate::io_const_error!(ErrorKind::UnexpectedEof, "failed to fill whole buffer");
+    pub(crate) const UNKNOWN_THREAD_COUNT: Self = crate::io_const_error!(
         ErrorKind::NotFound,
         "the number of hardware threads is not known for the target platform",
     );
     pub(crate) const UNSUPPORTED_PLATFORM: Self =
-        crate::const_error!(ErrorKind::Unsupported, "operation not supported on this platform");
+        crate::io_const_error!(ErrorKind::Unsupported, "operation not supported on this platform");
     pub(crate) const WRITE_ALL_EOF: Self =
-        crate::const_error!(ErrorKind::WriteZero, "failed to write whole buffer");
+        crate::io_const_error!(ErrorKind::WriteZero, "failed to write whole buffer");
     pub(crate) const ZERO_TIMEOUT: Self =
-        crate::const_error!(ErrorKind::InvalidInput, "cannot set a 0 duration timeout");
+        crate::io_const_error!(ErrorKind::InvalidInput, "cannot set a 0 duration timeout");
 }
 
 #[cfg(feature = "alloc")]
 impl From<alloc::ffi::NulError> for Error {
     /// Converts a [`alloc::ffi::NulError`] into a [`Error`].
     fn from(_: alloc::ffi::NulError) -> Error {
-        crate::const_error!(ErrorKind::InvalidInput, "data provided contains a nul byte")
+        crate::io_const_error!(ErrorKind::InvalidInput, "data provided contains a nul byte")
     }
 }
 
@@ -168,18 +168,20 @@ pub struct SimpleMessage {
 ///
 /// # Example
 /// ```
-/// #![feature(io_const_error)]
-/// use std::io::{const_error, Error, ErrorKind};
+/// use io_core::{
+///     io::{Error, ErrorKind},
+///     io_const_error,
+/// };
 ///
-/// const FAIL: Error = const_error!(ErrorKind::Unsupported, "tried something that never works");
+///
+/// const FAIL: Error = io_const_error!(ErrorKind::Unsupported, "tried something that never works");
 ///
 /// fn not_here() -> Result<(), Error> {
 ///     Err(FAIL)
 /// }
 /// ```
-#[doc(hidden)]
 #[macro_export]
-macro_rules! const_error {
+macro_rules! io_const_error {
     ($kind:expr, $message:expr $(,)?) => {
         $crate::io::Error::from_static_message(
             const {
@@ -483,7 +485,7 @@ impl From<ErrorKind> for Error {
     /// # Examples
     ///
     /// ```
-    /// use std::io::{Error, ErrorKind};
+    /// use io_core::io::{Error, ErrorKind};
     ///
     /// let not_found = ErrorKind::NotFound;
     /// let error = Error::from(not_found);
@@ -512,7 +514,7 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::io::{Error, ErrorKind};
+    /// use io_core::io::{Error, ErrorKind};
     ///
     /// // errors can be created from strings
     /// let custom_error = Error::new(ErrorKind::Other, "oh no!");
@@ -541,7 +543,7 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::io::Error;
+    /// use io_core::io::Error;
     ///
     /// // errors can be created from strings
     /// let custom_error = Error::other("oh no!");
@@ -596,7 +598,7 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::io::Error;
+    /// use io_core::io::Error;
     ///
     /// let os_error = Error::last_os_error();
     /// println!("last OS error: {os_error:?}");
@@ -618,7 +620,7 @@ impl Error {
     ///
     /// ```
     /// # if cfg!(target_os = "linux") {
-    /// use std::io;
+    /// use io_core::io;
     ///
     /// let error = io::Error::from_raw_os_error(22);
     /// assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
@@ -629,7 +631,7 @@ impl Error {
     ///
     /// ```
     /// # if cfg!(windows) {
-    /// use std::io;
+    /// use io_core::io;
     ///
     /// let error = io::Error::from_raw_os_error(10022);
     /// assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
@@ -655,7 +657,7 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::io::{Error, ErrorKind};
+    /// use io_core::io::{Error, ErrorKind};
     ///
     /// fn print_os_error(err: &Error) {
     ///     if let Some(raw_os_err) = err.raw_os_error() {
@@ -693,7 +695,7 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::io::{Error, ErrorKind};
+    /// use io_core::io::{Error, ErrorKind};
     ///
     /// fn print_error(err: &Error) {
     ///     if let Some(inner_err) = err.get_ref() {
@@ -736,11 +738,9 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::{
-    ///     error, fmt,
-    ///     fmt::Display,
-    ///     io::{Error, ErrorKind},
-    /// };
+    /// use std::{error, fmt, fmt::Display};
+    ///
+    /// use io_core::io::{Error, ErrorKind};
     ///
     /// #[derive(Debug)]
     /// struct MyError {
@@ -819,7 +819,7 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::io::{Error, ErrorKind};
+    /// use io_core::io::{Error, ErrorKind};
     ///
     /// fn print_error(err: Error) {
     ///     if let Some(inner_err) = err.into_inner() {
@@ -865,7 +865,9 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::{error::Error, fmt, io};
+    /// use std::{error::Error, fmt};
+    ///
+    /// use io_core::io;
     ///
     /// #[derive(Debug)]
     /// enum E {
@@ -954,7 +956,7 @@ impl Error {
     /// # Examples
     ///
     /// ```
-    /// use std::io::{Error, ErrorKind};
+    /// use io_core::io::{Error, ErrorKind};
     ///
     /// fn print_error(err: Error) {
     ///     println!("{:?}", err.kind());
