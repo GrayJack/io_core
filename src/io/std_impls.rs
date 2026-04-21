@@ -104,6 +104,34 @@ macro_rules! std_write {
     };
 }
 
+macro_rules! std_seek {
+    () => {
+        fn seek(&mut self, pos: ::std::io::SeekFrom) -> ::std::io::Result<u64> {
+            <Self as io::Seek>::seek(self, pos.into()).map_err(Into::into)
+        }
+
+        fn rewind(&mut self) -> ::std::io::Result<()> {
+            <Self as io::Seek>::rewind(self).map_err(Into::into)
+        }
+
+        fn stream_position(&mut self) -> ::std::io::Result<u64> {
+            <Self as io::Seek>::stream_position(self).map_err(Into::into)
+        }
+
+        fn seek_relative(&mut self, offset: i64) -> ::std::io::Result<()> {
+            <Self as io::Seek>::seek_relative(self, offset).map_err(Into::into)
+        }
+    };
+
+    ($($t:ty),+ $(,)?) => {
+        $(
+            impl ::std::io::Seek for $t {
+                std_seek!();
+            }
+        )+
+    };
+}
+
 macro_rules! crate_read {
     ($($t:ty),+ $(,)?) => {
         $(
@@ -202,6 +230,34 @@ macro_rules! crate_write {
     };
 }
 
+macro_rules! crate_seek {
+    () => {
+        fn seek(&mut self, pos: $crate::io::SeekFrom) -> $crate::io::Result<u64> {
+            <Self as ::std::io::Seek>::seek(self, pos.into()).map_err(Into::into)
+        }
+
+        fn rewind(&mut self) -> $crate::io::Result<()> {
+            <Self as ::std::io::Seek>::rewind(self).map_err(Into::into)
+        }
+
+        fn stream_position(&mut self) -> $crate::io::Result<u64> {
+            <Self as ::std::io::Seek>::stream_position(self).map_err(Into::into)
+        }
+
+        fn seek_relative(&mut self, offset: i64) -> $crate::io::Result<()> {
+            <Self as ::std::io::Seek>::seek_relative(self, offset).map_err(Into::into)
+        }
+    };
+
+    ($($t:ty),+ $(,)?) => {
+        $(
+            impl $crate::io::Seek for $t {
+                crate_seek!();
+            }
+        )+
+    };
+}
+
 std_read!(io::Empty, io::Repeat);
 std_bufread!(io::Empty);
 std_write!(
@@ -214,6 +270,7 @@ std_write!(
     io::PipeWriter,
     &io::PipeWriter,
 );
+std_seek!(io::Empty);
 
 crate_read!(
     std::io::Empty,
@@ -247,10 +304,17 @@ crate_write!(
     &std::io::PipeWriter,
     std::fs::File,
     &std::fs::File,
+    std::sync::Arc<std::fs::File>,
     std::net::TcpStream,
     &std::net::TcpStream,
     std::process::ChildStdin,
     &std::process::ChildStdin,
+);
+crate_seek!(
+    std::io::Empty,
+    std::fs::File,
+    &std::fs::File,
+    std::sync::Arc<std::fs::File>
 );
 
 
@@ -262,8 +326,16 @@ impl<R: ?Sized + io::Read> std::io::BufRead for io::BufReader<R> {
     std_bufread!();
 }
 
+impl<R: ?Sized + io::Seek> std::io::Seek for io::BufReader<R> {
+    std_seek!();
+}
+
 impl<W: ?Sized + io::Write> std::io::Write for io::BufWriter<W> {
     std_write!();
+}
+
+impl<W: ?Sized + io::Seek + io::Write> std::io::Seek for io::BufWriter<W> {
+    std_seek!();
 }
 
 impl<W: ?Sized + io::Write> std::io::Write for io::LineWriter<W> {
@@ -278,8 +350,16 @@ impl<R: ?Sized + io::Read, const N: usize> std::io::BufRead for io::ArrayBufRead
     std_bufread!();
 }
 
+impl<R: ?Sized + io::Seek, const N: usize> std::io::Seek for io::ArrayBufReader<R, N> {
+    std_seek!();
+}
+
 impl<W: ?Sized + io::Write, const N: usize> std::io::Write for io::ArrayBufWriter<W, N> {
     std_write!();
+}
+
+impl<W: ?Sized + io::Seek + io::Write, const N: usize> std::io::Seek for io::ArrayBufWriter<W, N> {
+    std_seek!();
 }
 
 impl<W: ?Sized + io::Write, const N: usize> std::io::Write for io::ArrayLineWriter<W, N> {
@@ -293,6 +373,23 @@ impl<R: io::Read> std::io::Read for io::Take<R> {
 impl<T: io::Read, U: io::Read> std::io::Read for io::Chain<T, U> {
     std_read!();
 }
+
+impl<T: io::BufRead, U: io::BufRead> std::io::BufRead for io::Chain<T, U> {
+    std_bufread!();
+}
+
+impl<T: AsRef<[u8]>> std::io::Read for io::Cursor<T> {
+    std_read!();
+}
+
+impl<T: AsRef<[u8]>> std::io::BufRead for io::Cursor<T> {
+    std_bufread!();
+}
+
+impl<T: AsRef<[u8]>> std::io::Seek for io::Cursor<T> {
+    std_seek!();
+}
+
 
 impl<R: ?Sized + std::io::Read> io::Read for std::io::BufReader<R> {
     crate_read!();
@@ -318,12 +415,20 @@ impl<T: AsRef<[u8]>> io::BufRead for std::io::Cursor<T> {
     crate_bufread!();
 }
 
+impl<T: AsRef<[u8]>> io::Seek for std::io::Cursor<T> {
+    crate_seek!();
+}
+
 impl<R: std::io::Read> io::Read for std::io::Take<R> {
     crate_read!();
 }
 
 impl<R: std::io::BufRead> io::BufRead for std::io::Take<R> {
     crate_bufread!();
+}
+
+impl<R: std::io::Seek> io::Seek for std::io::Take<R> {
+    crate_seek!();
 }
 
 impl<T: std::io::Read, U: std::io::Read> io::Read for std::io::Chain<T, U> {
@@ -373,6 +478,20 @@ impl From<std::io::IoSliceMut<'_>> for io::IoSliceMut<'_> {
 
 impl From<io::IoSliceMut<'_>> for std::io::IoSliceMut<'_> {
     fn from(value: io::IoSliceMut<'_>) -> Self {
+        // Safety: Same type and same layout as std
+        unsafe { mem::transmute(value) }
+    }
+}
+
+impl From<std::io::SeekFrom> for io::SeekFrom {
+    fn from(value: std::io::SeekFrom) -> Self {
+        // Safety: Same type and same layout as std
+        unsafe { mem::transmute(value) }
+    }
+}
+
+impl From<io::SeekFrom> for std::io::SeekFrom {
+    fn from(value: io::SeekFrom) -> Self {
         // Safety: Same type and same layout as std
         unsafe { mem::transmute(value) }
     }
