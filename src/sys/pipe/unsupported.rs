@@ -106,27 +106,34 @@ impl fmt::Debug for Pipe {
 mod unix_traits {
 
     use super::Pipe;
-    use crate::{
-        os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
-        sys::{FromInner, IntoInner},
-    };
+    use crate::sys::{FromInner, IntoInner};
+    use std::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 
     impl AsRawFd for Pipe {
         #[inline]
         fn as_raw_fd(&self) -> RawFd {
-            self.0
+            cfg_select! {
+                feature = "nightly" => self.0,
+                _ => todo!()
+            }
         }
     }
 
     impl AsFd for Pipe {
         fn as_fd(&self) -> BorrowedFd<'_> {
-            self.0
+            cfg_select! {
+                feature = "nightly" => self.0,
+                _ => todo!()
+            }
         }
     }
 
     impl IntoRawFd for Pipe {
         fn into_raw_fd(self) -> RawFd {
-            self.0
+            cfg_select! {
+                feature = "nightly" => self.0,
+                _ => todo!()
+            }
         }
     }
 
@@ -144,7 +151,10 @@ mod unix_traits {
 
     impl IntoInner<OwnedFd> for Pipe {
         fn into_inner(self) -> OwnedFd {
-            self.0
+            cfg_select! {
+                feature = "nightly" => self.0,
+                _ => todo!()
+            }
         }
     }
 }

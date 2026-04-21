@@ -2,7 +2,7 @@ use crate::io;
 
 use std::{
     os::fd::FromRawFd,
-    sys::{fxd::FileDesc, pal::cvt},
+    sys::{fd::FileDesc, pal::cvt},
 };
 
 pub type Pipe = FileDesc;

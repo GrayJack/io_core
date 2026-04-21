@@ -1,7 +1,9 @@
 #![allow(unused_imports)]
 
 mod error;
-pub use error::RawOsError;
+#[cfg(feature = "alloc")]
+pub use error::error_string;
+pub use error::{decode_error_kind, errno, is_interrupted, RawOsError};
 
 pub use io_slice::{IoSlice, IoSliceMut};
 pub use is_terminal::is_terminal;
