@@ -1,11 +1,16 @@
 use core::{marker::PhantomData, slice};
 
-use std::sys::c;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct WSABUF {
+    pub len: u32,
+    pub buf: *mut u8,
+}
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
 pub struct IoSlice<'a> {
-    vec: c::WSABUF,
+    vec: WSABUF,
     _p: PhantomData<&'a [u8]>,
 }
 
@@ -14,7 +19,7 @@ impl<'a> IoSlice<'a> {
     pub fn new(buf: &'a [u8]) -> IoSlice<'a> {
         assert!(buf.len() <= u32::MAX as usize);
         IoSlice {
-            vec: c::WSABUF {
+            vec: WSABUF {
                 len: buf.len() as u32,
                 buf: buf.as_ptr() as *mut u8,
             },
@@ -42,7 +47,7 @@ impl<'a> IoSlice<'a> {
 
 #[repr(transparent)]
 pub struct IoSliceMut<'a> {
-    vec: c::WSABUF,
+    vec: WSABUF,
     _p: PhantomData<&'a mut [u8]>,
 }
 
@@ -51,7 +56,7 @@ impl<'a> IoSliceMut<'a> {
     pub fn new(buf: &'a mut [u8]) -> IoSliceMut<'a> {
         assert!(buf.len() <= u32::MAX as usize);
         IoSliceMut {
-            vec: c::WSABUF {
+            vec: WSABUF {
                 len: buf.len() as u32,
                 buf: buf.as_mut_ptr(),
             },
