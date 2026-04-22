@@ -20,4 +20,5 @@ extern crate alloc;
 extern crate std;
 
 pub mod io;
+pub mod os;
 pub(crate) mod sys;

@@ -3,7 +3,7 @@ use core::{error, fmt, result};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 
-use crate::sys;
+use crate::sys::os;
 
 // On 64-bit platforms, `io::Error` may use a bit-packed representation to
 // reduce size. However, this representation assumes that error codes are
@@ -137,7 +137,7 @@ enum ErrorData<C> {
 /// portability.
 ///
 /// [`into`]: Into::into
-pub type RawOsError = sys::io::RawOsError;
+pub type RawOsError = crate::sys::io::RawOsError;
 
 // `#[repr(align(4))]` is probably redundant, it should have that value or
 // higher already. We include it just because repr_bitpacked.rs's encoding
@@ -609,7 +609,7 @@ impl Error {
     #[inline]
     #[cfg(feature = "std")]
     pub fn last_os_error() -> Error {
-        Error::from_raw_os_error(sys::io::errno())
+        Error::from_raw_os_error(os::last_os_error())
     }
 
     /// Creates a new instance of an [`Error`] from a particular OS error code.
@@ -975,16 +975,7 @@ impl Error {
     #[allow(unused_variables)]
     pub fn kind(&self) -> ErrorKind {
         match self.repr.data() {
-            ErrorData::Os(code) => {
-                #[cfg(feature = "std")]
-                {
-                    sys::io::decode_error_kind(code)
-                }
-                #[cfg(not(feature = "std"))]
-                {
-                    ErrorKind::Uncategorized
-                }
-            },
+            ErrorData::Os(code) => os::decode_error_kind(code),
             ErrorData::Custom(c) => c.kind,
             ErrorData::Simple(kind) => kind,
             ErrorData::SimpleMessage(m) => m.kind,
@@ -995,16 +986,7 @@ impl Error {
     #[allow(unused_variables)]
     pub(crate) fn is_interrupted(&self) -> bool {
         match self.repr.data() {
-            ErrorData::Os(code) => {
-                #[cfg(feature = "std")]
-                {
-                    sys::io::is_interrupted(code)
-                }
-                #[cfg(not(feature = "std"))]
-                {
-                    false
-                }
-            },
+            ErrorData::Os(code) => os::is_interrupted(code),
             ErrorData::Custom(c) => c.kind == ErrorKind::Interrupted,
             ErrorData::Simple(kind) => kind == ErrorKind::Interrupted,
             ErrorData::SimpleMessage(m) => m.kind == ErrorKind::Interrupted,
@@ -1018,13 +1000,20 @@ impl fmt::Debug for Repr {
             ErrorData::Os(code) => {
                 let mut f = fmt.debug_struct("Os");
 
-                f.field("code", &code);
+                f.field("code", &code).field("kind", &os::decode_error_kind(code));
 
-                #[cfg(feature = "std")]
-                {
-                    f.field("kind", &sys::io::decode_error_kind(code))
-                        .field("message", &sys::io::error_string(code));
+                let msg = os::error_str(code);
+                cfg_select! {
+                    feature = "alloc" => {
+                        if msg.is_empty() {
+                            f.field("message", &os::error_string(code));
+                        } else {
+                            f.field("message", &msg);
+                        }
+                    },
+                    _ => {f.field("message", &msg);},
                 }
+
 
                 f.finish()
             },
@@ -1044,12 +1033,21 @@ impl fmt::Display for Error {
         match self.repr.data() {
             ErrorData::Os(code) => {
                 cfg_select! {
-                    feature = "std" => {
-                        let detail = sys::io::error_string(code);
-                        write!(fmt, "{detail} (os error {code})")
+                    feature = "alloc" => {
+                        let detail = os::error_string(code);
+                        if detail.is_empty() {
+                            write!(fmt, "os error {:#010X}", code)
+                        } else {
+                            write!(fmt, "{detail} (os error {code})")
+                        }
                     }
                     _ => {
-                        write!(fmt, "os error {code}")
+                        let detail = os::error_str(code);
+                        if detail.is_empty() {
+                            write!(fmt, "os error {:#010X}", code)
+                        } else {
+                            write!(fmt, "{detail} (os error {code})")
+                        }
                     }
                 }
             },
