@@ -173,7 +173,6 @@ pub struct SimpleMessage {
 ///     io_const_error,
 /// };
 ///
-///
 /// const FAIL: Error = io_const_error!(ErrorKind::Unsupported, "tried something that never works");
 ///
 /// fn not_here() -> Result<(), Error> {

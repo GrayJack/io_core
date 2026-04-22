@@ -54,7 +54,7 @@ pub struct ArrayBufReader<R: ?Sized, const N: usize = DEFAULT_BUF_SIZE> {
 }
 
 impl<R: Read, const N: usize> ArrayBufReader<R, N> {
-    /// Creates a new `ArrayBufReader<R>` with a default buffer capacity.
+    /// Creates a new `ArrayBufReader<R, N>` with a default buffer capacity.
     // # Examples
     /// ```no_run
     /// use std::fs::File;
@@ -442,7 +442,7 @@ impl<R: ?Sized + Seek, const N: usize> Seek for ArrayBufReader<R, N> {
     /// Seek to an offset, in bytes, in the underlying reader.
     ///
     /// The position used for seeking with <code>[SeekFrom::Current]\(_)</code> is the
-    /// position the underlying reader would be at if the `BufReader<R>` had no
+    /// position the underlying reader would be at if the `ArrayBufReader<R, N>` had no
     /// internal buffer.
     ///
     /// Seeking always discards the internal buffer, even if the seek position

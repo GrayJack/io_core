@@ -108,7 +108,7 @@ impl<W: Write, const N: usize> ArrayBufWriter<W, N> {
         }
     }
 
-    /// Unwraps this `BufWriter<W>`, returning the underlying writer.
+    /// Unwraps this `ArrayBufWriter<W, N>`, returning the underlying writer.
     ///
     /// The buffer is written out before returning the writer.
     ///

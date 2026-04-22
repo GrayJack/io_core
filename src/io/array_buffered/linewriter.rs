@@ -10,18 +10,18 @@ use crate::io::{
 /// The [`ArrayBufWriter`] struct wraps a writer and buffers its output.
 /// But it only does this batched write when it goes out of scope, or when the
 /// internal buffer is full. Sometimes, you'd prefer to write each line as it's
-/// completed, rather than the entire buffer at once. Enter `LineWriter`. It
+/// completed, rather than the entire buffer at once. Enter `ArrayLineWriter`. It
 /// does exactly that.
 ///
-/// Like [`ArrayBufWriter`], a `LineWriter`’s buffer will also be flushed when the
-/// `LineWriter` goes out of scope or when its internal buffer is full.
+/// Like [`ArrayBufWriter`], a `ArrayLineWriter`’s buffer will also be flushed when the
+/// `ArrayLineWriter` goes out of scope or when its internal buffer is full.
 ///
-/// If there's still a partial line in the buffer when the `LineWriter` is
+/// If there's still a partial line in the buffer when the `ArrayLineWriter` is
 /// dropped, it will flush those contents.
 ///
 /// # Examples
 ///
-/// We can use `LineWriter` to write one line at a time, significantly
+/// We can use `ArrayLineWriter` to write one line at a time, significantly
 /// reducing the number of actual writes to the file.
 ///
 /// ```no_run
@@ -56,7 +56,7 @@ use crate::io::{
 ///     )?;
 ///
 ///     // The last line of the poem doesn't end in a newline, so
-///     // we have to flush or drop the `LineWriter` to finish
+///     // we have to flush or drop the `ArrayLineWriter` to finish
 ///     // writing.
 ///     file.flush()?;
 ///
@@ -70,7 +70,7 @@ pub struct ArrayLineWriter<W: ?Sized + Write, const N: usize> {
 }
 
 impl<W: Write, const N: usize> ArrayLineWriter<W, N> {
-    /// Creates a new `LineWriter`.
+    /// Creates a new `ArrayLineWriter`.
     ///
     /// # Examples
     ///
@@ -99,7 +99,7 @@ impl<W: Write, const N: usize> ArrayLineWriter<W, N> {
     /// # Examples
     ///
     /// ```no_run
-    /// use std::{fs::File, io::LineWriter};
+    /// use std::fs::File;
     ///
     /// use io_core::io::{self, ArrayLineWriter};
     ///
@@ -116,7 +116,7 @@ impl<W: Write, const N: usize> ArrayLineWriter<W, N> {
         self.inner.get_mut()
     }
 
-    /// Unwraps this `LineWriter`, returning the underlying writer.
+    /// Unwraps this `ArrayLineWriter`, returning the underlying writer.
     ///
     /// The internal buffer is written out before returning the writer.
     ///
