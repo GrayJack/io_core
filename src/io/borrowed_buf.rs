@@ -517,25 +517,25 @@ impl<'data> From<TrackingBorrowedCursor<'data>> for TrackingBorrowedBuf<'data> {
 impl<'data> TrackingBorrowedBuf<'data> {
     /// Returns the total capacity of the buffer.
     #[inline]
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         self.buf.len()
     }
 
     /// Returns the length of the filled part of the buffer.
     #[inline]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.filled
     }
 
     /// Returns `true` if the buffer is empty.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.filled == 0
     }
 
     /// Returns the length of the initialized part of the buffer.
     #[inline]
-    pub fn init_len(&self) -> usize {
+    pub const fn init_len(&self) -> usize {
         self.init
     }
 
@@ -581,7 +581,7 @@ impl<'data> TrackingBorrowedBuf<'data> {
 
     /// Returns a cursor over the unfilled part of the buffer.
     #[inline]
-    pub fn unfilled<'this>(&'this mut self) -> TrackingBorrowedCursor<'this> {
+    pub const fn unfilled<'this>(&'this mut self) -> TrackingBorrowedCursor<'this> {
         TrackingBorrowedCursor {
             start: self.filled,
             // SAFETY: we never assign into `BorrowedCursor::buf`, so treating its
@@ -600,7 +600,7 @@ impl<'data> TrackingBorrowedBuf<'data> {
     /// The number of initialized bytes is not changed, and the contents of the buffer are not
     /// modified.
     #[inline]
-    pub fn clear(&mut self) -> &mut Self {
+    pub const fn clear(&mut self) -> &mut Self {
         self.filled = 0;
         self
     }
@@ -654,7 +654,7 @@ impl<'a> TrackingBorrowedCursor<'a> {
     /// Since a cursor maintains unique access to its underlying buffer, the borrowed cursor is
     /// not accessible while the new cursor exists.
     #[inline]
-    pub fn reborrow<'this>(&'this mut self) -> TrackingBorrowedCursor<'this> {
+    pub const fn reborrow<'this>(&'this mut self) -> TrackingBorrowedCursor<'this> {
         TrackingBorrowedCursor {
             // SAFETY: we never assign into `BorrowedCursor::buf`, so treating its
             // lifetime covariantly is safe.
@@ -670,7 +670,7 @@ impl<'a> TrackingBorrowedCursor<'a> {
 
     /// Returns the available space in the cursor.
     #[inline]
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         self.buf.capacity() - self.buf.filled
     }
 
@@ -680,7 +680,7 @@ impl<'a> TrackingBorrowedCursor<'a> {
     /// Note that if this cursor is a reborrowed clone of another, then the count returned is the
     /// count written via either cursor, not the count since the cursor was reborrowed.
     #[inline]
-    pub fn written(&self) -> usize {
+    pub const fn written(&self) -> usize {
         self.buf.filled - self.start
     }
 
@@ -737,7 +737,7 @@ impl<'a> TrackingBorrowedCursor<'a> {
     ///
     /// Panics if there are less than `n` bytes initialized.
     #[inline]
-    pub fn advance(&mut self, n: usize) -> &mut Self {
+    pub const fn advance(&mut self, n: usize) -> &mut Self {
         let filled = self.buf.filled.strict_add(n);
         assert!(filled <= self.buf.init);
 

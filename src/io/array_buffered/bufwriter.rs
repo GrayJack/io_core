@@ -281,7 +281,7 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
     /// // we can use reference just like buffer
     /// let reference = buffer.get_ref();
     /// ```
-    pub fn get_ref(&self) -> &W {
+    pub const fn get_ref(&self) -> &W {
         &self.inner
     }
 
@@ -301,7 +301,7 @@ impl<W: ?Sized + Write, const N: usize> ArrayBufWriter<W, N> {
     /// // we can use reference just like buffer
     /// let reference = buffer.get_mut();
     /// ```
-    pub fn get_mut(&mut self) -> &mut W {
+    pub const fn get_mut(&mut self) -> &mut W {
         &mut self.inner
     }
 

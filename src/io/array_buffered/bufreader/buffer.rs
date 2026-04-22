@@ -7,8 +7,8 @@
 //!
 //! Since this module encapsulates the buffer management logic, we can ensure that the range
 //! `pos..filled` is always a valid index into the initialized region of the buffer. This means
-//! that user code which wants to do reads from a `ArrayBufReader` via `buffer` + `consume` can do so
-//! without encountering any runtime bounds checks.
+//! that user code which wants to do reads from a `ArrayBufReader` via `buffer` + `consume` can do
+//! so without encountering any runtime bounds checks.
 
 use core::{cmp, mem::MaybeUninit};
 
@@ -53,23 +53,23 @@ impl<const N: usize> ArrayBuffer<N> {
     }
 
     #[inline]
-    pub fn filled(&self) -> usize {
+    pub const fn filled(&self) -> usize {
         self.filled
     }
 
     #[inline]
-    pub fn pos(&self) -> usize {
+    pub const fn pos(&self) -> usize {
         self.pos
     }
 
     // This is only used by a test which asserts that the initialization-tracking is correct.
     #[cfg(test)]
-    pub fn initialized(&self) -> bool {
+    pub const fn initialized(&self) -> bool {
         self.initialized
     }
 
     #[inline]
-    pub fn discard_buffer(&mut self) {
+    pub const fn discard_buffer(&mut self) {
         self.pos = 0;
         self.filled = 0;
     }
@@ -97,7 +97,7 @@ impl<const N: usize> ArrayBuffer<N> {
     }
 
     #[inline]
-    pub fn unconsume(&mut self, amt: usize) {
+    pub const fn unconsume(&mut self, amt: usize) {
         self.pos = self.pos.saturating_sub(amt);
     }
 

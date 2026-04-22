@@ -16,20 +16,20 @@ pub struct ArrayLineWriterShim<'a, W: ?Sized + Write, const N: usize> {
 }
 
 impl<'a, W: ?Sized + Write, const N: usize> ArrayLineWriterShim<'a, W, N> {
-    pub fn new(buffer: &'a mut ArrayBufWriter<W, N>) -> Self {
+    pub const fn new(buffer: &'a mut ArrayBufWriter<W, N>) -> Self {
         Self { buffer }
     }
 
     /// Gets a reference to the inner writer (that is, the writer
     /// wrapped by the BufWriter).
-    fn inner(&self) -> &W {
+    const fn inner(&self) -> &W {
         self.buffer.get_ref()
     }
 
     /// Gets a mutable reference to the inner writer (that is, the writer
     /// wrapped by the BufWriter). Be careful with this writer, as writes to
     /// it will bypass the buffer.
-    fn inner_mut(&mut self) -> &mut W {
+    const fn inner_mut(&mut self) -> &mut W {
         self.buffer.get_mut()
     }
 

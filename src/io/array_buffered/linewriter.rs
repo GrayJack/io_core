@@ -85,7 +85,7 @@ impl<W: Write, const N: usize> ArrayLineWriter<W, N> {
     /// Ok(())
     /// # }
     /// ```
-    pub fn new(inner: W) -> Self {
+    pub const fn new(inner: W) -> Self {
         Self {
             inner: ArrayBufWriter::new(inner),
         }
@@ -112,7 +112,7 @@ impl<W: Write, const N: usize> ArrayLineWriter<W, N> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_mut(&mut self) -> &mut W {
+    pub const fn get_mut(&mut self) -> &mut W {
         self.inner.get_mut()
     }
 
@@ -165,7 +165,7 @@ impl<W: ?Sized + Write, const N: usize> ArrayLineWriter<W, N> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_ref(&self) -> &W {
+    pub const fn get_ref(&self) -> &W {
         self.inner.get_ref()
     }
 }

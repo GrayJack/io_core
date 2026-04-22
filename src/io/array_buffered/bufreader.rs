@@ -74,7 +74,7 @@ impl<R: Read, const N: usize> ArrayBufReader<R, N> {
         }
     }
 
-    pub(crate) fn with_buffer(inner: R, buf: ArrayBuffer<N>) -> Self {
+    pub(crate) const fn with_buffer(inner: R, buf: ArrayBuffer<N>) -> Self {
         Self { inner, buf }
     }
 }
@@ -142,7 +142,7 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
     ///     Ok(())
     /// }
     /// ```
-    pub fn get_ref(&self) -> &R {
+    pub const fn get_ref(&self) -> &R {
         &self.inner
     }
 
@@ -164,7 +164,7 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
     ///     Ok(())
     /// }
     /// ```
-    pub fn get_mut(&mut self) -> &mut R {
+    pub const fn get_mut(&mut self) -> &mut R {
         &mut self.inner
     }
 
@@ -244,7 +244,7 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
 
     /// Invalidates all data in the internal buffer.
     #[inline]
-    pub(in crate::io) fn discard_buffer(&mut self) {
+    pub(in crate::io) const fn discard_buffer(&mut self) {
         self.buf.discard_buffer()
     }
 }
@@ -253,7 +253,7 @@ impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
 #[cfg(test)]
 impl<R: ?Sized, const N: usize> ArrayBufReader<R, N> {
     #[allow(missing_docs)]
-    pub fn initialized(&self) -> bool {
+    pub const fn initialized(&self) -> bool {
         self.buf.initialized()
     }
 }
