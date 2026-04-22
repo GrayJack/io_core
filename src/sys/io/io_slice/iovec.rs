@@ -1,13 +1,11 @@
 use core::{ffi::c_void, marker::PhantomData, slice};
 
-#[cfg(target_os = "hermit")]
-use hermit_abi::iovec;
-
-#[cfg(any(target_family = "unix", target_os = "trusty", target_os = "wasi"))]
-use libc::iovec;
-
-#[cfg(target_os = "solid_asp3")]
-use std::sys::pal::abi::sockets::iovec;
+#[repr(C)]
+#[derive(Copy, Clone)]
+struct iovec {
+    iov_base: *mut c_void,
+    iov_len: usize,
+}
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
