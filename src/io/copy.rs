@@ -1,4 +1,6 @@
-use crate::io::{BorrowedBuf, Read, Result, Write, DEFAULT_BUF_SIZE};
+use crate::io::{
+    ArrayBufReader, ArrayBufWriter, BorrowedBuf, Read, Result, Write, DEFAULT_BUF_SIZE,
+};
 use core::{cmp, mem::MaybeUninit};
 
 #[cfg(feature = "alloc")]
@@ -194,6 +196,45 @@ where
     }
 }
 
+impl<I, const N: usize> BufferedReaderSpec for ArrayBufReader<I, N>
+where
+    Self: Read,
+    I: ?Sized,
+{
+    fn buffer_size(&self) -> usize {
+        self.capacity()
+    }
+
+    fn copy_to(&mut self, to: &mut (impl Write + ?Sized)) -> Result<u64> {
+        let mut len = 0;
+
+        loop {
+            // Hack: this relies on `impl Read for ArrayBufReader` always calling fill_buf
+            // if the buffer is empty, even for empty slices.
+            // It can't be called directly here since specialization prevents us
+            // from adding I: Read
+            match self.read(&mut []) {
+                Ok(_) => {},
+                Err(e) if e.is_interrupted() => continue,
+                Err(e) => return Err(e),
+            }
+            let buf = self.buffer();
+            if self.buffer().is_empty() {
+                return Ok(len);
+            }
+
+            // In case the writer side is a ArrayBufWriter then its write_all
+            // implements an optimization that passes through large
+            // buffers to the underlying writer. That code path is #[cold]
+            // but we're still avoiding redundant memcopies when doing
+            // a copy between buffered inputs and outputs.
+            to.write_all(buf)?;
+            len += buf.len() as u64;
+            self.discard_buffer();
+        }
+    }
+}
+
 /// Specialization of the read-write loop that either uses a stack buffer
 /// or reuses the internal buffer of a BufWriter
 trait BufferedWriterSpec: Write {
@@ -214,7 +255,7 @@ impl<W: Write + ?Sized> BufferedWriterSpec for W {
     }
 }
 
-#[cfg(not(feature = "alloc"))]
+#[cfg(feature = "alloc")]
 impl<I: Write + ?Sized> BufferedWriterSpec for BufWriter<I> {
     fn buffer_size(&self) -> usize {
         self.capacity()
@@ -252,6 +293,57 @@ impl<I: Write + ?Sized> BufferedWriterSpec for BufWriter<I> {
 
                         // SAFETY: BorrowedBuf guarantees all of its filled bytes are init
                         unsafe { buf.set_len(buf.len() + bytes_read) };
+
+                        // Read again if the buffer still has enough capacity, as BufWriter itself
+                        // would do This will occur if the reader returns
+                        // short reads
+                    },
+                    Err(ref e) if e.is_interrupted() => {},
+                    Err(e) => return Err(e),
+                }
+            } else {
+                self.flush_buf()?;
+            }
+        }
+    }
+}
+
+impl<I: Write + ?Sized, const N: usize> BufferedWriterSpec for ArrayBufWriter<I, N> {
+    fn buffer_size(&self) -> usize {
+        self.capacity()
+    }
+
+    fn copy_from<R: Read + ?Sized>(&mut self, reader: &mut R) -> Result<u64> {
+        if self.capacity() < DEFAULT_BUF_SIZE {
+            return stack_buffer_copy(reader, self);
+        }
+
+        let mut len = 0;
+        let mut init = false;
+
+        loop {
+            let buf = self.buffer_mut();
+            let mut read_buf: BorrowedBuf<'_> = buf.into();
+
+            if init {
+                // SAFETY: init is either 0 or the init_len from the previous iteration.
+                unsafe { read_buf.set_init() };
+            }
+
+            if read_buf.capacity() >= DEFAULT_BUF_SIZE {
+                let mut cursor = read_buf.unfilled();
+                match reader.read_buf(cursor.reborrow()) {
+                    Ok(()) => {
+                        let bytes_read = cursor.written();
+
+                        if bytes_read == 0 {
+                            return Ok(len);
+                        }
+
+                        init = read_buf.is_init();
+                        len += bytes_read as u64;
+
+                        self.len = buf.len() + bytes_read
 
                         // Read again if the buffer still has enough capacity, as BufWriter itself
                         // would do This will occur if the reader returns

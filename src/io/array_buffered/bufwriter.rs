@@ -70,7 +70,7 @@ use crate::io::{
 /// the `stream` is flushed.
 pub struct ArrayBufWriter<W: ?Sized + Write, const N: usize> {
     buf: [u8; N],
-    len: usize,
+    pub(in crate::io) len: usize,
     // #30888: If the inner writer panics in a call to write, we don't want to
     // write the buffered data a second time in BufWriter's destructor. This
     // flag tells the Drop impl if it should skip the flush.

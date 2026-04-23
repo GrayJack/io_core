@@ -8,7 +8,7 @@
         maybe_uninit_array_assume_init,
         maybe_uninit_fill,
         allocator_api,
-        never_type
+        never_type,
     )
 )]
 #![cfg_attr(all(feature = "nightly", feature = "alloc"), feature(try_with_capacity))]
