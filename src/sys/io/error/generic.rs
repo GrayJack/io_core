@@ -1,3 +1,6 @@
+#[cfg(feature = "alloc")]
+use alloc::string::{String, ToString};
+
 pub fn errno() -> i32 {
     0
 }
