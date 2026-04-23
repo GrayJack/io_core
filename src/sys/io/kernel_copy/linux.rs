@@ -50,12 +50,15 @@ use libc::sendfile64;
 use libc::{EBADF, EINVAL, ENOSYS, EOPNOTSUPP, EOVERFLOW, EPERM, EXDEV};
 
 use super::CopyState;
-use crate::{
+use core::{
+    cmp::min,
+    mem::ManuallyDrop,
+    ptr,
+    sync::atomic::{Atomic, AtomicBool, AtomicU8, Ordering},
+};
+use std::{
     fs::{File, Metadata},
-    io::{
-        BufRead, BufReader, BufWriter, Error, PipeReader, PipeWriter, Read, Result, StderrLock,
-        StdinLock, StdoutLock, Take, Write,
-    },
+    io::{StderrLock, StdinLock, StdoutLock},
     net::TcpStream,
     os::unix::{
         fs::FileTypeExt,
@@ -65,11 +68,9 @@ use crate::{
     process::{ChildStderr, ChildStdin, ChildStdout},
     sys::{cvt, fs::CachedFileMetadata, weak::syscall},
 };
-use core::{
-    cmp::min,
-    mem::ManuallyDrop,
-    ptr,
-    sync::atomic::{Atomic, AtomicBool, AtomicU8, Ordering},
+
+use crate::io::{
+    BufRead, BufReader, BufWriter, Error, PipeReader, PipeWriter, Read, Result, Take, Write,
 };
 
 #[cfg(test)]

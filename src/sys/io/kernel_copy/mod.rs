@@ -6,10 +6,10 @@ pub enum CopyState {
 }
 
 cfg_select! {
-    all(any(target_os = "linux", target_os = "android"), feature = "std") => {
-        mod linux;
-        pub use linux::kernel_copy;
-    }
+    // all(any(target_os = "linux", target_os = "android"), feature = "std") => {
+    //     mod linux;
+    //     pub use linux::kernel_copy;
+    // }
     _ => {
         use crate::io::{Result, Read, Write};
 
