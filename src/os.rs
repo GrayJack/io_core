@@ -4,3 +4,5 @@
 //! supported by default on this crate.
 
 pub use crate::sys::{os::set_os_functions, OsFunctions};
+
+pub mod fd;
