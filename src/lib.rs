@@ -21,4 +21,6 @@ extern crate std;
 
 pub mod io;
 pub mod os;
-pub(crate) mod sys;
+
+#[doc(hidden)]
+pub mod sys;
