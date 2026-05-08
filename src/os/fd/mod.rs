@@ -7,7 +7,7 @@
 mod std_impl;
 
 /// Raw file descriptors.
-#[cfg(all(not(target_os = "hermit"), not(target_os = "motor")))]
+#[cfg(all(not(target_os = "hermit"), not(target_os = "motor"), not(target_os = "psp")))]
 pub type RawFd = core::ffi::c_int;
 /// Raw file descriptors.
 #[cfg(any(target_os = "hermit", target_os = "motor"))]
