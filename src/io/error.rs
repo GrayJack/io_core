@@ -1,4 +1,4 @@
-use core::{error, fmt, result};
+use core::{error, fmt, ptr::NonNull, result};
 
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
@@ -196,12 +196,78 @@ macro_rules! io_const_error {
 // As with `SimpleMessage`: `#[repr(align(4))]` here is just because
 // repr_bitpacked's encoding requires it. In practice it almost certainly be
 // already be this high or higher.
-#[derive(Debug)]
 #[repr(align(4))]
-struct Custom {
+#[doc(hidden)]
+pub struct Custom {
     kind: ErrorKind,
-    #[cfg(feature = "alloc")]
-    error: Box<dyn error::Error + Send + Sync>,
+    error: NonNull<dyn error::Error + Send + Sync>,
+    error_drop: unsafe fn(*mut (dyn error::Error + Send + Sync)),
+    outer_drop: unsafe fn(*mut Self),
+}
+
+// SAFETY: All members of `Custom` are `Send`
+unsafe impl Send for Custom {}
+
+// SAFETY: All members of `Custom` are `Sync`
+unsafe impl Sync for Custom {}
+
+impl fmt::Debug for Custom {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Custom")
+            .field("kind", &self.kind)
+            .field("error", self.error_ref())
+            .finish()
+    }
+}
+
+impl Drop for Custom {
+    fn drop(&mut self) {
+        // SAFETY: `Custom::from_raw` ensures this call is safe.
+        unsafe {
+            (self.error_drop)(self.error.as_ptr());
+        }
+    }
+}
+
+impl Custom {
+    /// # Safety
+    ///
+    /// * `error` must be valid for up to a static lifetime, and own its pointee.
+    /// * `error_drop` must be safe to call for the pointer `error` exactly once.
+    /// * `outer_drop` must be safe to call on a pointer to this instance of `Custom` if it were
+    ///   stored within a [`CustomOwner`].
+    pub unsafe fn from_raw(
+        kind: ErrorKind, error: NonNull<dyn error::Error + Send + Sync>,
+        error_drop: unsafe fn(*mut (dyn error::Error + Send + Sync)),
+        outer_drop: unsafe fn(*mut Self),
+    ) -> Custom {
+        Custom {
+            kind,
+            error,
+            error_drop,
+            outer_drop,
+        }
+    }
+
+    pub fn into_raw(self) -> NonNull<dyn error::Error + Send + Sync> {
+        let ptr = self.error;
+        core::mem::forget(self);
+        ptr
+    }
+
+    fn error_ref(&self) -> &(dyn error::Error + Send + Sync + 'static) {
+        // SAFETY:
+        // `from_raw` ensures `error` is a valid pointer up to a static lifetime
+        // and is owned by `self`
+        unsafe { self.error.as_ref() }
+    }
+
+    fn error_mut(&mut self) -> &mut (dyn error::Error + Send + Sync + 'static) {
+        // SAFETY:
+        // `from_raw` ensures `error` is a valid pointer up to a static lifetime
+        // and is owned by `self`
+        unsafe { self.error.as_mut() }
+    }
 }
 
 /// A list specifying general categories of I/O error.
@@ -530,7 +596,10 @@ impl Error {
     where
         E: Into<Box<dyn error::Error + Send + Sync>>,
     {
-        Self::_new(kind, error.into())
+        let custom = custom_owner_from_box(kind, error.into());
+
+        // SAFETY: `custom_owner` has bee constructed from a `Box` from the `alloc` crate.
+        unsafe { Self::from_custom_owner(custom) }
     }
 
     /// Creates a new I/O error from an arbitrary error payload.
@@ -555,13 +624,33 @@ impl Error {
     where
         E: Into<Box<dyn error::Error + Send + Sync>>,
     {
-        Self::_new(ErrorKind::Other, error.into())
+        Self::new(ErrorKind::Other, error.into())
     }
 
-    #[cfg(feature = "alloc")]
-    fn _new(kind: ErrorKind, error: Box<dyn error::Error + Send + Sync>) -> Error {
+    /// # Safety
+    ///
+    /// The provided `CustomOwner` must have been constructed from a `Box` from the `alloc` crate.
+    #[inline]
+    #[must_use]
+    #[doc(hidden)]
+    pub unsafe fn from_custom_owner(custom: CustomOwner) -> Error {
         Error {
-            repr: Repr::new_custom(Box::new(Custom { kind, error })),
+            repr: Repr::new_custom(custom),
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    #[doc(hidden)]
+    pub fn into_custom_owner(self) -> result::Result<CustomOwner, Self> {
+        if matches!(self.repr.data(), ErrorData::Custom(..)) {
+            let ErrorData::Custom(c) = self.repr.into_data() else {
+                // SAFETY: Checked above using `matches!`.
+                unsafe { core::hint::unreachable_unchecked() }
+            };
+            Ok(c)
+        } else {
+            Err(self)
         }
     }
 
@@ -719,10 +808,7 @@ impl Error {
             ErrorData::Os(..) => None,
             ErrorData::Simple(..) => None,
             ErrorData::SimpleMessage(..) => None,
-            ErrorData::Custom(c) => cfg_select! {
-                feature = "alloc" => Some(&*c.error),
-                _ => None
-            },
+            ErrorData::Custom(c) => Some(c.error_ref()),
         }
     }
 
@@ -799,10 +885,7 @@ impl Error {
             ErrorData::Os(..) => None,
             ErrorData::Simple(..) => None,
             ErrorData::SimpleMessage(..) => None,
-            ErrorData::Custom(c) => cfg_select! {
-                feature = "alloc" => Some(&mut *c.error),
-                _ => None
-            },
+            ErrorData::Custom(c) => Some(c.error_mut()),
         }
     }
 
@@ -839,12 +922,20 @@ impl Error {
     #[cfg(feature = "alloc")]
     #[must_use = "`self` will be dropped if the result is not used"]
     pub fn into_inner(self) -> Option<Box<dyn error::Error + Send + Sync>> {
-        match self.repr.into_data() {
-            ErrorData::Os(..) => None,
-            ErrorData::Simple(..) => None,
-            ErrorData::SimpleMessage(..) => None,
-            ErrorData::Custom(c) => Some(c.error),
-        }
+        let custom_owner = self.into_custom_owner().ok()?;
+
+        let ptr = custom_owner.into_raw().as_ptr();
+
+        // SAFETY:
+        // `Error` can only contain a `CustomOwner` if it was constructed using `Box::into_raw`.
+        let custom = unsafe { Box::<Custom>::from_raw(ptr) };
+
+        let ptr = custom.into_raw().as_ptr();
+
+        // SAFETY:
+        // Any `CustomOwner` from an `Error` was constructed by the `alloc` crate
+        // to contain a `Custom` which itself was constructed with `Box::into_raw`.
+        Some(unsafe { Box::from_raw(ptr) })
     }
 
     /// Attempts to downcast the custom boxed error to `E`.
@@ -921,11 +1012,11 @@ impl Error {
     {
         #[cfg(feature = "alloc")]
         {
-            if let ErrorData::Custom(c) = self.repr.data()
-                && c.error.is::<E>()
+            if let Some(e) = self.get_ref()
+                && e.is::<E>()
             {
-                if let ErrorData::Custom(b) = self.repr.into_data()
-                    && let Ok(err) = b.error.downcast::<E>()
+                if let Some(b) = self.into_inner()
+                    && let Ok(err) = b.downcast::<E>()
                 {
                     Ok(*err)
                 } else {
@@ -1050,12 +1141,7 @@ impl fmt::Display for Error {
                     }
                 }
             },
-            ErrorData::Custom(c) => {
-                cfg_select! {
-                    feature = "alloc" => c.error.fmt(fmt),
-                    _ => write!(fmt, "{}", c.kind.as_str())
-                }
-            },
+            ErrorData::Custom(c) => fmt::Display::fmt(c.error_ref(), fmt),
             ErrorData::Simple(kind) => write!(fmt, "{}", kind.as_str()),
             ErrorData::SimpleMessage(msg) => msg.message.fmt(fmt),
         }
@@ -1070,10 +1156,7 @@ impl error::Error for Error {
             ErrorData::Os(..) => None,
             ErrorData::Simple(..) => None,
             ErrorData::SimpleMessage(..) => None,
-            ErrorData::Custom(c) => cfg_select! {
-                feature = "alloc" => c.error.cause(),
-                _ => None
-            },
+            ErrorData::Custom(c) => c.error_ref().cause(),
         }
     }
 
@@ -1083,12 +1166,89 @@ impl error::Error for Error {
             ErrorData::Os(..) => None,
             ErrorData::Simple(..) => None,
             ErrorData::SimpleMessage(..) => None,
-            ErrorData::Custom(c) => cfg_select! {
-                feature = "alloc" => c.error.source(),
-                _ => None
-            },
+            ErrorData::Custom(c) => c.error_ref().source(),
         }
     }
+}
+
+// SAFETY: Custom is `Send` and `Sync`
+unsafe impl Send for CustomOwner {}
+unsafe impl Sync for CustomOwner {}
+
+impl Drop for CustomOwner {
+    fn drop(&mut self) {
+        // SAFETY: `CustomOwner::from_raw` ensures this call is safe.
+        unsafe {
+            (self.0.as_ref().outer_drop)(self.0.as_ptr());
+        }
+    }
+}
+
+#[doc(hidden)]
+#[derive(Debug)]
+#[repr(transparent)]
+pub struct CustomOwner(NonNull<Custom>);
+
+impl CustomOwner {
+    /// # Safety
+    ///
+    /// * The `outer_drop` of the provided `custom` must be safe to call exactly once.
+    #[doc(hidden)]
+    pub unsafe fn from_raw(custom: NonNull<Custom>) -> Self {
+        Self(custom)
+    }
+
+    pub fn into_raw(self) -> NonNull<Custom> {
+        let ptr = self.0;
+        core::mem::forget(self);
+        ptr
+    }
+
+    #[allow(dead_code, reason = "only used for unpacked representation")]
+    fn custom_ref(&self) -> &Custom {
+        // SAFETY:
+        // `from_raw` ensures `0` is a valid pointer up to a static lifetime
+        // and is owned by `self`
+        unsafe { self.0.as_ref() }
+    }
+
+    #[allow(dead_code, reason = "only used for unpacked representation")]
+    fn custom_mut(&mut self) -> &mut Custom {
+        // SAFETY:
+        // `from_raw` ensures `0` is a valid pointer up to a static lifetime
+        // and is owned by `self`
+        unsafe { self.0.as_mut() }
+    }
+}
+
+#[cfg(feature = "alloc")]
+fn custom_owner_from_box(
+    kind: ErrorKind, error: Box<dyn core::error::Error + Send + Sync>,
+) -> CustomOwner {
+    /// # Safety
+    ///
+    /// `ptr` must be valid to pass into `Box::from_raw`.
+    unsafe fn drop_box_raw<T: ?Sized>(ptr: *mut T) {
+        // SAFETY
+        // Caller ensures `ptr` is valid to pass into `Box::from_raw`.
+        drop(unsafe { Box::from_raw(ptr) })
+    }
+
+    // SAFETY: the pointer returned by Box::into_raw is non-null.
+    let error = unsafe { core::ptr::NonNull::new_unchecked(Box::into_raw(error)) };
+
+    // SAFETY:
+    // * `error` is valid up to a static lifetime, and owns its pointee.
+    // * `drop_box_raw` is safe to call for the pointer `error` exactly once.
+    // * `drop_box_raw` is safe to call on a pointer to this instance of `Custom`, and will be
+    //   stored in a `CustomOwner`.
+    let custom = unsafe { Custom::from_raw(kind, error, drop_box_raw, drop_box_raw) };
+
+    // SAFETY: the pointer returned by Box::into_raw is non-null.
+    let custom = unsafe { core::ptr::NonNull::new_unchecked(Box::into_raw(Box::new(custom))) };
+
+    // SAFETY: the `outer_drop` provided to `custom` is valid for itself.
+    unsafe { CustomOwner::from_raw(custom) }
 }
 
 fn _assert_error_is_sync_send() {

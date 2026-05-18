@@ -102,7 +102,7 @@ use core::{marker::PhantomData, num::NonZeroUsize, ptr::NonNull};
 #[cfg(feature = "alloc")]
 use alloc::boxed::Box;
 
-use super::{Custom, ErrorData, ErrorKind, RawOsError, SimpleMessage};
+use super::{Custom, CustomOwner, ErrorData, ErrorKind, RawOsError, SimpleMessage};
 
 // The 2 least-significant bits are used as tag.
 const TAG_MASK: usize = 0b11;
@@ -121,16 +121,15 @@ const TAG_SIMPLE: usize = 0b11;
 /// is_unwind_safe::<std::io::Error>();
 /// ```
 #[repr(transparent)]
-pub(super) struct Repr(NonNull<()>, PhantomData<ErrorData<Box<Custom>>>);
+pub(super) struct Repr(NonNull<()>, PhantomData<ErrorData<CustomOwner>>);
 
 // All the types `Repr` stores internally are Send + Sync, and so is it.
 unsafe impl Send for Repr {}
 unsafe impl Sync for Repr {}
 
 impl Repr {
-    #[cfg(feature = "alloc")]
-    pub(super) fn new_custom(b: Box<Custom>) -> Self {
-        let p = Box::into_raw(b).cast::<u8>();
+    pub(super) fn new_custom(b: CustomOwner) -> Self {
+        let p = b.into_raw().as_ptr().cast::<u8>();
         // Should only be possible if an allocator handed out a pointer with
         // wrong alignment.
         debug_assert_eq!(p.addr() & TAG_MASK, 0);
@@ -142,7 +141,7 @@ impl Repr {
         // (rather than `ptr::wrapping_add`), but it's unclear this would give
         // any benefit, so we just use `wrapping_add` instead.
         let tagged = p.wrapping_add(TAG_CUSTOM).cast::<()>();
-        // Safety: `TAG_CUSTOM + p` is the same as `TAG_CUSTOM | p`,
+        // SAFETY: `TAG_CUSTOM + p` is the same as `TAG_CUSTOM | p`,
         // because `p`'s alignment means it isn't allowed to have any of the
         // `TAG_BITS` set (you can verify that addition and bitwise-or are the
         // same when the operands have no bits in common using a truth table).
@@ -152,7 +151,8 @@ impl Repr {
         // box, and `TAG_CUSTOM` just... isn't zero -- it's `0b01`). Therefore,
         // `TAG_CUSTOM + p` isn't zero and so `tagged` can't be, and the
         // `new_unchecked` is safe.
-        let res = Self(unsafe { NonNull::new_unchecked(tagged) }, PhantomData);
+        let ptr = unsafe { NonNull::new_unchecked(tagged) };
+        let res = Self(ptr, PhantomData);
         // quickly smoke-check we encoded the right thing (This generally will
         // only run in std's tests, unless the user uses -Zbuild-std)
         debug_assert!(matches!(res.data(), ErrorData::Custom(_)), "repr(custom) encoding failed");
@@ -162,11 +162,9 @@ impl Repr {
     #[inline]
     pub(super) fn new_os(code: RawOsError) -> Self {
         let utagged = ((code as usize) << 32) | TAG_OS;
-        // Safety: `TAG_OS` is not zero, so the result of the `|` is not 0.
-        let res = Self(
-            NonNull::without_provenance(unsafe { NonZeroUsize::new_unchecked(utagged) }),
-            PhantomData,
-        );
+        // SAFETY: `TAG_OS` is not zero, so the result of the `|` is not 0.
+        let utagged = unsafe { NonZeroUsize::new_unchecked(utagged) };
+        let res = Self(NonNull::without_provenance(utagged), PhantomData);
         // quickly smoke-check we encoded the right thing (This generally will
         // only run in std's tests, unless the user uses -Zbuild-std)
         debug_assert!(
@@ -179,11 +177,9 @@ impl Repr {
     #[inline]
     pub(super) fn new_simple(kind: ErrorKind) -> Self {
         let utagged = ((kind as usize) << 32) | TAG_SIMPLE;
-        // Safety: `TAG_SIMPLE` is not zero, so the result of the `|` is not 0.
-        let res = Self(
-            NonNull::without_provenance(unsafe { NonZeroUsize::new_unchecked(utagged) }),
-            PhantomData,
-        );
+        // SAFETY: `TAG_SIMPLE` is not zero, so the result of the `|` is not 0.
+        let utagged = unsafe { NonZeroUsize::new_unchecked(utagged) };
+        let res = Self(NonNull::without_provenance(utagged), PhantomData);
         // quickly smoke-check we encoded the right thing (This generally will
         // only run in std's tests, unless the user uses -Zbuild-std)
         debug_assert!(
@@ -196,46 +192,47 @@ impl Repr {
 
     #[inline]
     pub(super) const fn new_simple_message(m: &'static SimpleMessage) -> Self {
-        // Safety: References are never null.
-        Self(unsafe { NonNull::new_unchecked(m as *const _ as *mut ()) }, PhantomData)
+        // SAFETY: References are never null.
+        let ptr = unsafe { NonNull::new_unchecked(m as *const _ as *mut ()) };
+        Self(ptr, PhantomData)
     }
 
     #[inline]
     pub(super) fn data(&self) -> ErrorData<&Custom> {
-        // Safety: We're a Repr, decode_repr is fine.
+        // SAFETY: We're a Repr, decode_repr is fine.
         unsafe { decode_repr(self.0, |c| &*c) }
     }
 
     #[inline]
     pub(super) fn data_mut(&mut self) -> ErrorData<&mut Custom> {
-        // Safety: We're a Repr, decode_repr is fine.
+        // SAFETY: We're a Repr, decode_repr is fine.
         unsafe { decode_repr(self.0, |c| &mut *c) }
     }
 
     #[inline]
     #[cfg(feature = "alloc")]
-    pub(super) fn into_data(self) -> ErrorData<Box<Custom>> {
+    pub(super) fn into_data(self) -> ErrorData<CustomOwner> {
         let this = core::mem::ManuallyDrop::new(self);
-        // Safety: We're a Repr, decode_repr is fine. The `Box::from_raw` is
+        // SAFETY: We're a Repr, decode_repr is fine. The `Box::from_raw` is
         // safe because we prevent double-drop using `ManuallyDrop`.
-        unsafe { decode_repr(this.0, |p| Box::from_raw(p)) }
+        unsafe { decode_repr(this.0, |p| CustomOwner::from_raw(NonNull::new_unchecked(p))) }
     }
 }
 
 impl Drop for Repr {
     #[inline]
     fn drop(&mut self) {
-        // Safety: We're a Repr, decode_repr is fine. The `Box::from_raw` is
+        // SAFETY: We're a Repr, decode_repr is fine. The `Box::from_raw` is
         // safe because we're being dropped.
         unsafe {
-            let _ = decode_repr(self.0, |p| Box::<Custom>::from_raw(p));
+            let _ = decode_repr(self.0, |p| CustomOwner::from_raw(NonNull::new_unchecked(p)));
         }
     }
 }
 
 // Shared helper to decode a `Repr`'s internal pointer into an ErrorData.
 //
-// Safety: `ptr`'s bits should be encoded as described in the document at the
+// SAFETY: `ptr`'s bits should be encoded as described in the document at the
 // top (it should `some_repr.0`)
 #[inline]
 unsafe fn decode_repr<C, F>(ptr: NonNull<()>, make_custom: F) -> ErrorData<C>
@@ -366,7 +363,7 @@ static_assert!(@usize_eq: size_of::<NonNull<()>>(), size_of::<usize>());
 
 // `Custom` and `SimpleMessage` need to be thin pointers.
 static_assert!(@usize_eq: size_of::<&'static SimpleMessage>(), 8);
-static_assert!(@usize_eq: size_of::<Box<Custom>>(), 8);
+static_assert!(@usize_eq: size_of::<CustomOwner>(), 8);
 
 static_assert!((TAG_MASK + 1).is_power_of_two());
 // And they must have sufficient alignment.

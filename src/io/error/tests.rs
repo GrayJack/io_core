@@ -19,14 +19,7 @@ fn test_debug_error() {
     let code = 6;
     let msg = error_string(code);
     let kind = decode_error_kind(code);
-    let err = Error {
-        repr: Repr::new_custom(Box::new(Custom {
-            kind: ErrorKind::InvalidInput,
-            error: Box::new(Error {
-                repr: super::Repr::new_os(code),
-            }),
-        })),
-    };
+    let err = Error::new(ErrorKind::InvalidInput, Error::from_raw_os_error(code));
     let expected = alloc::format!(
         "Custom {{ kind: InvalidInput, error: Os {{ code: {:?}, kind: {:?}, message: {:?} }} }}",
         code,
@@ -143,12 +136,10 @@ impl fmt::Display for Bojji {
 fn test_custom_error_packing() {
     use super::Custom;
     let test = Error::new(ErrorKind::Uncategorized, Bojji(true));
+    assert_eq!(test.kind(), ErrorKind::Uncategorized);
     assert_matches!(
-        test.repr.data(),
-        ErrorData::Custom(Custom {
-            kind: ErrorKind::Uncategorized,
-            error,
-        }) if error.downcast_ref::<Bojji>() == Some(&Bojji(true)),
+        test.get_ref(),
+        Some(error) if error.downcast_ref::<Bojji>() == Some(&Bojji(true)),
     );
 }
 

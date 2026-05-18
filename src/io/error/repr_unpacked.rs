@@ -3,28 +3,15 @@
 //! would have no benefit.
 #![allow(unused)]
 
-use super::{Custom, ErrorData, ErrorKind, RawOsError, SimpleMessage};
+use super::{Custom, CustomOwner, ErrorData, ErrorKind, RawOsError, SimpleMessage};
 
-#[cfg(feature = "alloc")]
-use alloc::boxed::Box;
-
-#[cfg(feature = "alloc")]
-type Inner = ErrorData<Box<Custom>>;
-#[cfg(not(feature = "alloc"))]
-type Inner = ErrorData<Custom>;
+type Inner = ErrorData<CustomOwner>;
 
 pub(super) struct Repr(Inner);
 
 impl Repr {
     #[inline]
-    #[cfg(feature = "alloc")]
-    pub(super) fn new_custom(b: Box<Custom>) -> Self {
-        Self(Inner::Custom(b))
-    }
-
-    #[inline]
-    #[cfg(not(feature = "alloc"))]
-    pub(super) fn new_custom(b: Custom) -> Self {
+    pub(super) fn new_custom(b: CustomOwner) -> Self {
         Self(Inner::Custom(b))
     }
 
@@ -44,14 +31,7 @@ impl Repr {
     }
 
     #[inline]
-    #[cfg(feature = "alloc")]
-    pub(super) fn into_data(self) -> ErrorData<Box<Custom>> {
-        self.0
-    }
-
-    #[inline]
-    #[cfg(not(feature = "alloc"))]
-    pub(super) fn into_data(self) -> ErrorData<Custom> {
+    pub(super) fn into_data(self) -> ErrorData<CustomOwner> {
         self.0
     }
 
@@ -61,7 +41,7 @@ impl Repr {
             Inner::Os(c) => ErrorData::Os(*c),
             Inner::Simple(k) => ErrorData::Simple(*k),
             Inner::SimpleMessage(m) => ErrorData::SimpleMessage(*m),
-            Inner::Custom(m) => ErrorData::Custom(&*m),
+            Inner::Custom(m) => ErrorData::Custom(m.custom_ref()),
         }
     }
 
@@ -71,7 +51,7 @@ impl Repr {
             Inner::Os(c) => ErrorData::Os(*c),
             Inner::Simple(k) => ErrorData::Simple(*k),
             Inner::SimpleMessage(m) => ErrorData::SimpleMessage(*m),
-            Inner::Custom(m) => ErrorData::Custom(&mut *m),
+            Inner::Custom(m) => ErrorData::Custom(m.custom_mut()),
         }
     }
 }
