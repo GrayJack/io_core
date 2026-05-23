@@ -2897,7 +2897,8 @@ impl<R: Read> Iterator for Bytes<R> {
 }
 
 /// For the specialization of `Bytes::next`.
-trait SpecReadByte {
+#[doc(hidden)]
+pub trait SpecReadByte {
     fn spec_read_byte(&mut self) -> Option<Result<u8>>;
 }
 
@@ -2934,7 +2935,9 @@ fn uninlined_slow_read_byte<R: Read>(reader: &mut R) -> Option<Result<u8>> {
     inlined_slow_read_byte(reader)
 }
 
-trait SizeHint {
+/// Trait for specialization for size_hint.
+#[doc(hidden)]
+pub trait SizeHint {
     fn lower_bound(&self) -> usize;
 
     fn upper_bound(&self) -> Option<usize>;
