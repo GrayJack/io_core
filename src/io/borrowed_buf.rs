@@ -398,7 +398,10 @@ impl<'a, T: Default + Copy> BorrowedCursor<'a, T> {
 
         if !self.buf.init {
             cfg_select! {
-                feature = "nightly" => unfilled.write_default(),
+                all(feature = "nightly", feature = "__write_default") => unfilled.write_default(),
+                all(feature = "nightly", not(feature = "__write_default")) => {
+                    maybeuninit_write_default(unfilled)
+                },
                 _ => {
                     unfilled.fill(MaybeUninit::new(Default::default()));
                 },
@@ -860,7 +863,10 @@ impl<'a, T: Default + Copy> TrackingBorrowedCursor<'a, T> {
         let unfilled = unsafe { self.buf.buf.get_unchecked_mut(self.buf.filled..) };
 
         cfg_select! {
-            feature = "nightly" => unfilled.write_default(),
+            all(feature = "nightly", feature = "__write_default") => unfilled.write_default(),
+            all(feature = "nightly", not(feature = "__write_default")) => {
+                maybeuninit_write_default(unfilled)
+            },
             _ => {
                 unfilled.fill(MaybeUninit::new(Default::default()));
             },
@@ -870,4 +876,52 @@ impl<'a, T: Default + Copy> TrackingBorrowedCursor<'a, T> {
         // SAFETY: these elements have just been initialized if they weren't before
         unsafe { unfilled.assume_init_mut() }
     }
+}
+
+#[cfg(feature = "nightly")]
+fn maybeuninit_write_default<T>(buf: &mut [MaybeUninit<T>]) -> &mut [T]
+where
+    T: Default,
+{
+    trait DefaultSpec: Default {
+        fn write_default(buf: &mut [MaybeUninit<Self>]) -> &mut [Self];
+    }
+
+    impl<T: Default> DefaultSpec for T {
+        default fn write_default(buf: &mut [MaybeUninit<Self>]) -> &mut [Self] {
+            buf.write_with(|_| T::default())
+        }
+    }
+
+    macro_rules! spec_default_zero {
+        ($ty:ty) => {
+            impl DefaultSpec for $ty {
+                fn write_default(buf: &mut [MaybeUninit<Self>]) -> &mut [Self] {
+                    // SAFETY:
+                    // `Default::default` is equivalent to zero-initialization
+                    // for all these types, and this initializes the entire
+                    // slice.
+                    unsafe {
+                        buf.as_mut_ptr().write_bytes(0, buf.len());
+                        buf.assume_init_mut()
+                    }
+                }
+            }
+        };
+    }
+
+    spec_default_zero!(i8);
+    spec_default_zero!(u8);
+    spec_default_zero!(i16);
+    spec_default_zero!(u16);
+    spec_default_zero!(i32);
+    spec_default_zero!(u32);
+    spec_default_zero!(i64);
+    spec_default_zero!(u64);
+    spec_default_zero!(i128);
+    spec_default_zero!(u128);
+    spec_default_zero!(isize);
+    spec_default_zero!(usize);
+
+    T::write_default(buf)
 }

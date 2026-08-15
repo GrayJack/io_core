@@ -27,3 +27,6 @@ nightly = []
 
 # Not complete, do not use it
 std = ["alloc"]
+
+# Whether to use [MaybeUninit<T>]::write_default or our own function.
+__write_default = []
