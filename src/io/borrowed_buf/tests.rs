@@ -5,7 +5,7 @@ use core::mem::MaybeUninit;
 #[test]
 fn new() {
     let buf: &mut [_] = &mut [0; 16];
-    let mut rbuf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut rbuf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     assert_eq!(rbuf.filled().len(), 0);
     assert_eq!(rbuf.init_len(), 16);
@@ -17,7 +17,7 @@ fn new() {
 #[test]
 fn uninit() {
     let buf: &mut [_] = &mut [MaybeUninit::uninit(); 16];
-    let mut rbuf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut rbuf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     assert_eq!(rbuf.filled().len(), 0);
     assert_eq!(rbuf.init_len(), 0);
@@ -28,7 +28,7 @@ fn uninit() {
 #[test]
 fn initialize_unfilled() {
     let buf: &mut [_] = &mut [MaybeUninit::uninit(); 16];
-    let mut rbuf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut rbuf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     rbuf.unfilled().ensure_init();
 
@@ -38,7 +38,7 @@ fn initialize_unfilled() {
 #[test]
 fn advance_filled() {
     let buf: &mut [_] = &mut [0; 16];
-    let mut rbuf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut rbuf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     rbuf.unfilled().advance(1);
 
@@ -49,7 +49,7 @@ fn advance_filled() {
 #[test]
 fn clear() {
     let buf: &mut [_] = &mut [255; 16];
-    let mut rbuf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut rbuf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     rbuf.unfilled().advance(16);
 
@@ -67,7 +67,7 @@ fn clear() {
 #[test]
 fn set_init() {
     let buf: &mut [_] = &mut [MaybeUninit::uninit(); 16];
-    let mut rbuf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut rbuf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     unsafe {
         rbuf.set_init(8);
@@ -93,7 +93,7 @@ fn set_init() {
 #[test]
 fn append() {
     let buf: &mut [_] = &mut [MaybeUninit::new(255); 16];
-    let mut rbuf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut rbuf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     rbuf.unfilled().append(&[0; 8]);
 
@@ -113,7 +113,7 @@ fn append() {
 #[test]
 fn reborrow_written() {
     let buf: &mut [_] = &mut [MaybeUninit::new(0); 32];
-    let mut buf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut buf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     let mut cursor = buf.unfilled();
     cursor.append(&[1; 16]);
@@ -135,7 +135,7 @@ fn reborrow_written() {
 #[test]
 fn cursor_set_init() {
     let buf: &mut [_] = &mut [MaybeUninit::uninit(); 16];
-    let mut rbuf: TrackingBorrowedBuf<'_> = buf.into();
+    let mut rbuf: TrackingBorrowedBuf<'_, u8> = buf.into();
 
     unsafe {
         rbuf.unfilled().set_init(8);

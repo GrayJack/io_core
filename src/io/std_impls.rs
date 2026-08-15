@@ -265,8 +265,8 @@ std_write!(
     &io::Empty,
     io::Sink,
     &io::Sink,
-    io::BorrowedCursor<'_>,
-    io::TrackingBorrowedCursor<'_>,
+    io::BorrowedCursor<'_, u8>,
+    io::TrackingBorrowedCursor<'_, u8>,
     io::PipeWriter,
     &io::PipeWriter,
 );

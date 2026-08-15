@@ -174,7 +174,7 @@ pub(crate) fn default_read_to_end<R: Read + ?Sized>(
         let mut spare = buf.spare_capacity_mut();
         let buf_len = cmp::min(spare.len(), max_read_size);
         spare = &mut spare[..buf_len];
-        let mut read_buf: BorrowedBuf<'_> = spare.into();
+        let mut read_buf: BorrowedBuf<'_, u8> = spare.into();
 
         // Note that we don't track already initialized bytes here, but this is fine
         // because we explicitly limit the read size
@@ -274,7 +274,7 @@ pub(crate) fn default_read_exact<R: Read + ?Sized>(this: &mut R, mut buf: &mut [
     }
 }
 
-pub(crate) fn default_read_buf<F>(read: F, mut cursor: BorrowedCursor<'_>) -> Result<()>
+pub(crate) fn default_read_buf<F>(read: F, mut cursor: BorrowedCursor<'_, u8>) -> Result<()>
 where
     F: FnOnce(&mut [u8]) -> Result<usize>,
 {
@@ -284,7 +284,7 @@ where
 }
 
 pub(crate) fn default_read_buf_exact<R: Read + ?Sized>(
-    this: &mut R, mut cursor: BorrowedCursor<'_>,
+    this: &mut R, mut cursor: BorrowedCursor<'_, u8>,
 ) -> Result<()> {
     while cursor.capacity() > 0 {
         let prev_written = cursor.written();
@@ -738,7 +738,7 @@ pub trait Read {
     /// The default implementation delegates to `read`.
     ///
     /// This method makes it possible to return both data and an error but it is advised against.
-    fn read_buf(&mut self, buf: BorrowedCursor<'_>) -> Result<()> {
+    fn read_buf(&mut self, buf: BorrowedCursor<'_, u8>) -> Result<()> {
         default_read_buf(|b| self.read(b), buf)
     }
 
@@ -760,7 +760,7 @@ pub trait Read {
     /// returns.
     ///
     /// If this function returns an error, all bytes read will be appended to `cursor`.
-    fn read_buf_exact(&mut self, cursor: BorrowedCursor<'_>) -> Result<()> {
+    fn read_buf_exact(&mut self, cursor: BorrowedCursor<'_, u8>) -> Result<()> {
         default_read_buf_exact(self, cursor)
     }
 
@@ -2465,7 +2465,7 @@ impl<T: Read, U: Read> Read for Chain<T, U> {
     // We don't override `read_to_string` here because an UTF-8 sequence could
     // be split between the two parts of the chain
 
-    fn read_buf(&mut self, mut buf: BorrowedCursor<'_>) -> Result<()> {
+    fn read_buf(&mut self, mut buf: BorrowedCursor<'_, u8>) -> Result<()> {
         if buf.capacity() == 0 {
             return Ok(());
         }
@@ -2711,7 +2711,7 @@ impl<T: Read> Read for Take<T> {
     }
 
     #[cfg(feature = "nightly")]
-    fn read_buf(&mut self, mut buf: BorrowedCursor<'_>) -> Result<()> {
+    fn read_buf(&mut self, mut buf: BorrowedCursor<'_, u8>) -> Result<()> {
         // Don't call into inner reader at all at EOF because it may still block
         if self.limit == 0 {
             return Ok(());
@@ -2726,7 +2726,7 @@ impl<T: Read> Read for Take<T> {
             // SAFETY: no uninit data is written to ibuf
             let ibuf = unsafe { &mut buf.as_mut()[..limit] };
 
-            let mut sliced_buf: BorrowedBuf<'_> = ibuf.into();
+            let mut sliced_buf: BorrowedBuf<'_, u8> = ibuf.into();
 
             if is_init {
                 // SAFETY: `sliced_buf` is a subslice of `buf`, so if `buf` was initialized then

@@ -24,35 +24,35 @@ impl Pipe {
     pub fn try_clone(&self) -> io::Result<Self> {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
     pub fn read(&self, _buf: &mut [u8]) -> io::Result<usize> {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
-    pub fn read_buf(&self, _buf: BorrowedCursor<'_>) -> io::Result<()> {
+    pub fn read_buf(&self, _buf: BorrowedCursor<'_, u8>) -> io::Result<()> {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
     pub fn read_vectored(&self, _bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
     pub fn is_read_vectored(&self) -> bool {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
@@ -60,35 +60,35 @@ impl Pipe {
     pub fn read_to_end(&self, _buf: &mut Vec<u8>) -> io::Result<usize> {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
     pub fn write(&self, _buf: &[u8]) -> io::Result<usize> {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
     pub fn write_vectored(&self, _bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
     pub fn is_write_vectored(&self) -> bool {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 
     pub fn diverge(&self) -> ! {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }
@@ -97,7 +97,7 @@ impl fmt::Debug for Pipe {
     fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
         cfg_select! {
             feature = "nightly" => self.0,
-            _ => todo!()
+            _ => todo!(),
         }
     }
 }
@@ -114,7 +114,7 @@ mod unix_traits {
         fn as_raw_fd(&self) -> RawFd {
             cfg_select! {
                 feature = "nightly" => self.0,
-                _ => todo!()
+                _ => todo!(),
             }
         }
     }
@@ -123,7 +123,7 @@ mod unix_traits {
         fn as_fd(&self) -> BorrowedFd<'_> {
             cfg_select! {
                 feature = "nightly" => self.0,
-                _ => todo!()
+                _ => todo!(),
             }
         }
     }
@@ -132,7 +132,7 @@ mod unix_traits {
         fn into_raw_fd(self) -> RawFd {
             cfg_select! {
                 feature = "nightly" => self.0,
-                _ => todo!()
+                _ => todo!(),
             }
         }
     }
@@ -153,7 +153,7 @@ mod unix_traits {
         fn into_inner(self) -> OwnedFd {
             cfg_select! {
                 feature = "nightly" => self.0,
-                _ => todo!()
+                _ => todo!(),
             }
         }
     }

@@ -21,7 +21,7 @@ impl<R: Read + ?Sized> Read for &mut R {
     }
 
     #[inline]
-    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf(&mut self, cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         (**self).read_buf(cursor)
     }
 
@@ -53,7 +53,7 @@ impl<R: Read + ?Sized> Read for &mut R {
     }
 
     #[inline]
-    fn read_buf_exact(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf_exact(&mut self, cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         (**self).read_buf_exact(cursor)
     }
 }
@@ -161,7 +161,7 @@ impl<R: Read + ?Sized> Read for Box<R> {
     }
 
     #[inline]
-    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf(&mut self, cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         (**self).read_buf(cursor)
     }
 
@@ -193,7 +193,7 @@ impl<R: Read + ?Sized> Read for Box<R> {
     }
 
     #[inline]
-    fn read_buf_exact(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf_exact(&mut self, cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         (**self).read_buf_exact(cursor)
     }
 }
@@ -326,7 +326,7 @@ impl Read for &[u8] {
     }
 
     #[inline]
-    fn read_buf(&mut self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf(&mut self, mut cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         let amt = cmp::min(cursor.capacity(), self.len());
         let (a, b) = self.split_at(amt);
 
@@ -378,7 +378,7 @@ impl Read for &[u8] {
     }
 
     #[inline]
-    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         if cursor.capacity() > self.len() {
             // Append everything we can to the cursor.
             cursor.append(self);
@@ -614,7 +614,7 @@ impl<A: Allocator> Read for VecDeque<u8, A> {
     }
 
     #[inline]
-    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf(&mut self, cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         let (ref mut front, _) = self.as_slices();
         let n = cmp::min(cursor.capacity(), front.len());
         Read::read_buf(front, cursor)?;
@@ -623,7 +623,7 @@ impl<A: Allocator> Read for VecDeque<u8, A> {
     }
 
     #[inline]
-    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         let len = cursor.capacity();
         let (front, back) = self.as_slices();
 
@@ -705,7 +705,7 @@ impl Read for VecDeque<u8> {
     }
 
     #[inline]
-    fn read_buf(&mut self, cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf(&mut self, cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         let (ref mut front, _) = self.as_slices();
         let n = cmp::min(cursor.capacity(), front.len());
         Read::read_buf(front, cursor)?;
@@ -714,7 +714,7 @@ impl Read for VecDeque<u8> {
     }
 
     #[inline]
-    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         let len = cursor.capacity();
         let (front, back) = self.as_slices();
 
@@ -877,7 +877,7 @@ impl Write for VecDeque<u8> {
     }
 }
 
-impl<'a> io::Write for crate::io::BorrowedCursor<'a> {
+impl<'a> io::Write for crate::io::BorrowedCursor<'a, u8> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let amt = cmp::min(buf.len(), self.capacity());
@@ -928,7 +928,7 @@ impl<'a> io::Write for crate::io::BorrowedCursor<'a> {
     }
 }
 
-impl Write for crate::io::TrackingBorrowedCursor<'_> {
+impl Write for crate::io::TrackingBorrowedCursor<'_, u8> {
     #[inline]
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.append(buf);

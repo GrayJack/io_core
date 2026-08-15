@@ -324,7 +324,7 @@ where
         Ok(n)
     }
 
-    fn read_buf(&mut self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf(&mut self, mut cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         let prev_written = cursor.written();
 
         Read::read_buf(&mut Cursor::split(self).1, cursor.reborrow())?;
@@ -354,19 +354,19 @@ where
         let result = Read::read_exact(&mut Cursor::split(self).1, buf);
 
         match result {
-            Ok(_) => self.pos += buf.len() as u64,
+            Ok(_) => self.set_position(self.position() + buf.len() as u64),
             // The only possible error condition is EOF, so place the cursor at "EOF"
-            Err(_) => self.pos = self.inner.as_ref().len() as u64,
+            Err(_) => self.set_position(self.get_ref().as_ref().len() as u64),
         }
 
         result
     }
 
-    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         let prev_written = cursor.written();
 
         let result = Read::read_buf_exact(&mut Cursor::split(self).1, cursor.reborrow());
-        self.pos += (cursor.written() - prev_written) as u64;
+        self.set_position(self.position() + (cursor.written() - prev_written) as u64);
 
         result
     }
@@ -377,7 +377,7 @@ where
         let len = content.len();
         buf.try_reserve(len)?;
         buf.extend_from_slice(content);
-        self.pos += len as u64;
+        self.set_position(self.position() + len as u64);
 
         Ok(len)
     }
@@ -388,8 +388,9 @@ where
             core::str::from_utf8(Cursor::split(self).1).map_err(|_| io::Error::INVALID_UTF8)?;
         let len = content.len();
         buf.try_reserve(len)?;
+        // FIXME use try_push_str
         buf.push_str(content);
-        self.pos += len as u64;
+        self.set_position(self.position() + len as u64);
 
         Ok(len)
     }
@@ -404,7 +405,7 @@ where
     }
 
     fn consume(&mut self, amt: usize) {
-        self.pos += amt as u64;
+        self.set_position(self.position() + amt as u64);
     }
 }
 

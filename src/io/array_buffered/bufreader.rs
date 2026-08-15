@@ -312,7 +312,7 @@ impl<R: ?Sized + Read, const N: usize> Read for ArrayBufReader<R, N> {
         Ok(nread)
     }
 
-    fn read_buf(&mut self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf(&mut self, mut cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         // If we don't have any buffered data and we're doing a massive read
         // (larger than our internal buffer), bypass our internal buffer
         // entirely.
@@ -343,7 +343,7 @@ impl<R: ?Sized + Read, const N: usize> Read for ArrayBufReader<R, N> {
         crate::io::default_read_exact(self, buf)
     }
 
-    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_>) -> io::Result<()> {
+    fn read_buf_exact(&mut self, mut cursor: BorrowedCursor<'_, u8>) -> io::Result<()> {
         if self.buf.consume_with(cursor.capacity(), |claimed| cursor.append(claimed)) {
             return Ok(());
         }

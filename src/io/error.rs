@@ -1101,7 +1101,9 @@ impl fmt::Debug for Repr {
                             f.field("message", &msg);
                         }
                     },
-                    _ => {f.field("message", &msg);},
+                    _ => {
+                        f.field("message", &msg);
+                    },
                 }
 
 
@@ -1130,7 +1132,7 @@ impl fmt::Display for Error {
                         } else {
                             write!(fmt, "{detail} (os error {code})")
                         }
-                    }
+                    },
                     _ => {
                         let detail = os::error_str(code);
                         if detail.is_empty() {
@@ -1138,7 +1140,7 @@ impl fmt::Display for Error {
                         } else {
                             write!(fmt, "{detail} (os error {code})")
                         }
-                    }
+                    },
                 }
             },
             ErrorData::Custom(c) => fmt::Display::fmt(c.error_ref(), fmt),
@@ -1235,7 +1237,7 @@ fn custom_owner_from_box(
     }
 
     // SAFETY: the pointer returned by Box::into_raw is non-null.
-    let error = unsafe { core::ptr::NonNull::new_unchecked(Box::into_raw(error)) };
+    let error = NonNull::from_mut(Box::leak(error));
 
     // SAFETY:
     // * `error` is valid up to a static lifetime, and owns its pointee.
@@ -1245,7 +1247,7 @@ fn custom_owner_from_box(
     let custom = unsafe { Custom::from_raw(kind, error, drop_box_raw, drop_box_raw) };
 
     // SAFETY: the pointer returned by Box::into_raw is non-null.
-    let custom = unsafe { core::ptr::NonNull::new_unchecked(Box::into_raw(Box::new(custom))) };
+    let custom = NonNull::from_mut(Box::leak(Box::new(custom)));
 
     // SAFETY: the `outer_drop` provided to `custom` is valid for itself.
     unsafe { CustomOwner::from_raw(custom) }
