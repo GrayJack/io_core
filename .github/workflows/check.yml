@@ -86,3 +86,5 @@ jobs:
         run: cargo miri setup
       - name: Run miri
         run: cargo miri test --features std,__write_default
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation"
