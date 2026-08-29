@@ -3,7 +3,9 @@ use crate::io_const_error;
 
 use core::{assert_matches, error, fmt};
 
-use crate::sys::io::{decode_error_kind, error_string};
+use crate::sys::io::decode_error_kind;
+#[cfg(feature = "std")]
+use crate::sys::io::error_string;
 
 #[cfg(feature = "alloc")]
 use alloc::{boxed::Box, string::ToString};
