@@ -199,7 +199,7 @@ impl<'data, T: Copy> BorrowedBuf<'data, T> {
 
     /// Returns a cursor over the unfilled part of the buffer.
     #[inline]
-    pub fn unfilled<'this>(&'this mut self) -> BorrowedCursor<'this, T> {
+    pub const fn unfilled<'this>(&'this mut self) -> BorrowedCursor<'this, T> {
         let borrowed_buf = NonNull::from_mut(self);
         BorrowedCursor {
             buf: NonNull::from_mut(self.buf).cast(),
@@ -211,7 +211,7 @@ impl<'data, T: Copy> BorrowedBuf<'data, T> {
     ///
     /// The contents of the buffer are not modified.
     #[inline]
-    pub fn clear(&mut self) -> &mut Self {
+    pub const fn clear(&mut self) -> &mut Self {
         self.filled = 0;
         self
     }
@@ -222,7 +222,7 @@ impl<'data, T: Copy> BorrowedBuf<'data, T> {
     ///
     /// All the bytes of the buffer must be initialized.
     #[inline]
-    pub unsafe fn set_init(&mut self) -> &mut Self {
+    pub const unsafe fn set_init(&mut self) -> &mut Self {
         self.init = true;
         self
     }
@@ -278,14 +278,14 @@ impl<T> Debug for BorrowedCursor<'_, T> {
 // Helpers to access underlying buffer state.
 impl<'a, T> BorrowedCursor<'a, T> {
     #[inline]
-    fn buf_mut(&mut self) -> &mut [MaybeUninit<T>] {
+    const fn buf_mut(&mut self) -> &mut [MaybeUninit<T>] {
         let len = self.buf_len();
         // SAFETY: `buf` points to `len` elements that this cursor borrows exclusively.
         unsafe { slice::from_raw_parts_mut(self.buf.as_ptr(), len) }
     }
 
     #[inline]
-    fn buf_len(&self) -> usize {
+    const fn buf_len(&self) -> usize {
         // SAFETY: We read just the metadata of `buf` and avoid retagging the reference.
         unsafe {
             let borrowed_buf = self.borrowed_buf.as_ptr();
@@ -306,13 +306,13 @@ impl<'a, T> BorrowedCursor<'a, T> {
     }
 
     #[inline]
-    fn filled(&self) -> usize {
+    const fn filled(&self) -> usize {
         // SAFETY: We access just `filled` and avoid foreign read on `buf`.
         unsafe { (*self.borrowed_buf.as_ptr()).filled }
     }
 
     #[inline]
-    fn is_buf_init(&self) -> bool {
+    const fn is_buf_init(&self) -> bool {
         // SAFETY: We access just `init` and avoid foreign read on `buf`.
         unsafe { (*self.borrowed_buf.as_ptr()).init }
     }
@@ -321,7 +321,7 @@ impl<'a, T> BorrowedCursor<'a, T> {
     ///
     /// In case of `true` all the elements of the cursor must be initialized.
     #[inline]
-    unsafe fn set_buf_init(&mut self, init: bool) {
+    const unsafe fn set_buf_init(&mut self, init: bool) {
         // SAFETY: We access just `init` and avoid foreign read on `buf`.
         unsafe {
             (*self.borrowed_buf.as_ptr()).init = init;
@@ -332,7 +332,7 @@ impl<'a, T> BorrowedCursor<'a, T> {
     ///
     /// The next `n` elements of the cursor must be initialized.
     #[inline]
-    unsafe fn add_filled(&mut self, n: usize) {
+    const unsafe fn add_filled(&mut self, n: usize) {
         // SAFETY: We access just `filled` and avoid foreign read on `buf`.
         unsafe {
             (*self.borrowed_buf.as_ptr()).filled += n;
@@ -346,7 +346,7 @@ impl<'a, T: Copy> BorrowedCursor<'a, T> {
     /// Since a cursor maintains unique access to its underlying buffer, the borrowed cursor is
     /// not accessible while the new cursor exists.
     #[inline]
-    pub fn reborrow<'this>(&'this mut self) -> BorrowedCursor<'this, T> {
+    pub const fn reborrow<'this>(&'this mut self) -> BorrowedCursor<'this, T> {
         BorrowedCursor {
             buf: self.buf,
             borrowed_buf: self.borrowed_buf,
@@ -355,7 +355,7 @@ impl<'a, T: Copy> BorrowedCursor<'a, T> {
 
     /// Returns the available space in the cursor.
     #[inline]
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         self.buf_len() - self.filled()
     }
 
@@ -363,13 +363,13 @@ impl<'a, T: Copy> BorrowedCursor<'a, T> {
     ///
     /// In particular, the count returned is shared by all reborrows of the cursor.
     #[inline]
-    pub fn written(&self) -> usize {
+    pub const fn written(&self) -> usize {
         self.filled()
     }
 
     /// Returns `true` if the buffer is initialized.
     #[inline]
-    pub fn is_init(&self) -> bool {
+    pub const fn is_init(&self) -> bool {
         self.is_buf_init()
     }
 
@@ -379,7 +379,7 @@ impl<'a, T: Copy> BorrowedCursor<'a, T> {
     ///
     /// All the bytes of the cursor must be initialized.
     #[inline]
-    pub unsafe fn set_init(&mut self) {
+    pub const unsafe fn set_init(&mut self) {
         // SAFETY: the caller guarantees that all the elements of the cursor are initialized.
         unsafe { self.set_buf_init(true) }
     }
@@ -407,7 +407,7 @@ impl<'a, T: Copy> BorrowedCursor<'a, T> {
     ///
     /// Panics if there are less than `n` bytes initialized.
     #[inline]
-    pub fn advance_checked(&mut self, n: usize) -> &mut Self {
+    pub const fn advance_checked(&mut self, n: usize) -> &mut Self {
         // The subtraction cannot underflow by invariant of this type.
         let init_unfilled = if self.is_buf_init() {
             self.buf_len() - self.filled()
@@ -432,7 +432,7 @@ impl<'a, T: Copy> BorrowedCursor<'a, T> {
     /// The caller must ensure that the first `n` bytes of the cursor have been properly
     /// initialised.
     #[inline]
-    pub unsafe fn advance(&mut self, n: usize) -> &mut Self {
+    pub const unsafe fn advance(&mut self, n: usize) -> &mut Self {
         // SAFETY: the caller guarantees that the first `n` elements of the cursor are initialized.
         unsafe { self.add_filled(n) };
         self
@@ -751,8 +751,8 @@ impl<'data, T: Copy> TrackingBorrowedBuf<'data, T> {
     /// The caller must ensure that the first `n` unfilled bytes of the buffer have already been
     /// initialized.
     #[inline]
-    pub unsafe fn set_init(&mut self, n: usize) -> &mut Self {
-        self.init = cmp::max(self.init, n);
+    pub const unsafe fn set_init(&mut self, n: usize) -> &mut Self {
+        self.init = max(self.init, n);
         self
     }
 }
@@ -1001,14 +1001,6 @@ impl<'a, T: Copy> TrackingBorrowedCursor<'a, T> {
     /// initialized.
     #[inline]
     pub const unsafe fn advance(&mut self, n: usize) -> &mut Self {
-        const fn max(this: usize, other: usize) -> usize {
-            if other < this {
-                this
-            } else {
-                other
-            }
-        }
-
         // SAFETY: the caller guarantees that the first `n` elements of the cursor are initialized.
         unsafe {
             self.add_filled(n);
@@ -1166,4 +1158,12 @@ where
     spec_default_zero!(usize);
 
     T::write_default(buf)
+}
+
+const fn max(this: usize, other: usize) -> usize {
+    if other < this {
+        this
+    } else {
+        other
+    }
 }
