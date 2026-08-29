@@ -34,7 +34,7 @@ jobs:
     - name: Build Rust Documentation
       env:
         RUSTDOCFLAGS: -Zunstable-options --show-type-layout --enable-index-page
-      run: cargo doc --features std
+      run: cargo doc --features std,nightly
 
     - name: Deploy Docs
       uses: peaceiris/actions-gh-pages@v3
