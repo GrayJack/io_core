@@ -440,6 +440,17 @@ mod not_tracking {
         assert_eq!(rbuf.filled(), &[1, 2, 3, 0, 0, 0, 0]);
     }
 
+    #[test]
+    fn cursor_covariant_over_lifetime() {
+        let mut storage = [0u8; 16];
+        let mut buf: BorrowedBuf<'_, u8> = (&mut storage[..]).into();
+
+        let cursor = buf.unfilled();
+        let widened = cursor_covariant(cursor);
+
+        let _ = widened;
+    }
+
     fn buf_covariant<'short, 'long: 'short>(
         buf: BorrowedBuf<'long, u8>,
     ) -> BorrowedBuf<'short, u8> {
@@ -908,6 +919,39 @@ mod tracking {
         assert_eq!(rbuf.unfilled().uninit_mut().len(), 4);
         let mut tmp = rbuf.unfilled();
         assert_eq!(unsafe { tmp.as_mut() }.len(), 12);
+    }
+
+    #[test]
+    fn init_and_fill_ranges_consistency() {
+        let mut storage = [MaybeUninit::uninit(); 16];
+        let mut buf: TrackingBorrowedBuf<'_, u8> = (&mut storage[..]).into();
+
+        unsafe {
+            buf.set_init(8);
+        }
+
+        let mut cursor = buf.unfilled();
+        unsafe {
+            cursor.set_init(4);
+        }
+        cursor.advance_checked(4);
+
+        assert_eq!(cursor.init_ref().len(), 4);
+        assert_eq!(cursor.capacity(), 12);
+
+        assert_eq!(buf.init_len(), 8);
+        assert_eq!(buf.len(), 4);
+    }
+
+    #[test]
+    fn cursor_covariant_over_lifetime() {
+        let mut storage = [0u8; 16];
+        let mut buf: TrackingBorrowedBuf<'_, u8> = (&mut storage[..]).into();
+
+        let cursor = buf.unfilled();
+        let widened = cursor_covariant(cursor);
+
+        let _ = widened;
     }
 
     fn buf_covariant<'short, 'long: 'short>(
