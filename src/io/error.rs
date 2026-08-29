@@ -640,7 +640,6 @@ impl Error {
     }
 
     #[inline]
-    #[must_use]
     #[doc(hidden)]
     pub fn into_custom_owner(self) -> result::Result<CustomOwner, Self> {
         if matches!(self.repr.data(), ErrorData::Custom(..)) {
