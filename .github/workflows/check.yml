@@ -59,17 +59,17 @@ jobs:
     - name: Cache cargo output
       uses: Swatinem/rust-cache@v2
     - name: Check (Core)
-      run: cargo check --features __write_default
+      run: cargo check --features nightly,__write_default
     - name: Check (Alloc)
-      run: cargo check --features alloc,__write_default
+      run: cargo check --features alloc,nightly,__write_default
     - name: Check (std)
-      run: cargo check --features std,__write_default
+      run: cargo check --features std,nightly,__write_default
     - name: Run tests (Core)
-      run: cargo test --lib --features __write_default
+      run: cargo test --lib --features nightly,__write_default
     - name: Run tests (Alloc)
-      run: cargo test --lib --features alloc,__write_default
+      run: cargo test --lib --features alloc,nightly,__write_default
     - name: Run tests (STD)
-      run: cargo test --features std,__write_default
+      run: cargo test --features std,nightly,__write_default
 
   miri:
     name: Miri
