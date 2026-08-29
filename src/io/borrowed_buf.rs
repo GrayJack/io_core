@@ -1097,7 +1097,7 @@ impl<'a, T: Default + Copy> TrackingBorrowedCursor<'a, T> {
     pub fn ensure_init(&'a mut self) -> &'a mut [T] {
         let capacity = self.capacity();
 
-        {
+        if self.init() > 0 {
             // SAFETY: always in bounds and we never uninitialize these elements.
             let unfilled = self.unfilled_slice();
 
