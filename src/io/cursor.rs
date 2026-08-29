@@ -211,8 +211,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// #![feature(cursor_split)]
-    /// use std::io::Cursor;
+    /// use io_core::io::Cursor;
     ///
     /// let mut buff = Cursor::new(vec![1, 2, 3, 4, 5]);
     ///
@@ -241,8 +240,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// #![feature(cursor_split)]
-    /// use std::io::Cursor;
+    /// use io_core::io::Cursor;
     ///
     /// let mut buff = Cursor::new(vec![1, 2, 3, 4, 5]);
     ///
