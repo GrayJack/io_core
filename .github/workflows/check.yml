@@ -1,0 +1,88 @@
+name: Check
+
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["**"]
+    paths-ignore:
+      - "**.md"
+      - LICENSE
+      - .github/FUNDING.yml
+      - .gitignore
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "**/LICENSE"
+      - .github/FUNDING.yml
+      - .editorconfig
+      - .gitignore
+
+jobs:
+  check:
+    name: Check and Test (Stable)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: ["1.89.0", "stable"]
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.toolchain }}
+    - name: Cache cargo output
+      uses: Swatinem/rust-cache@v2
+    - name: Check (Core)
+      run: cargo check
+    - name: Check (Alloc)
+      run: cargo check --features alloc
+    - name: Check (STD)
+      run: cargo check --features std
+    - name: Run tests (Core)
+      run: cargo test --lib
+    - name: Run tests (Alloc)
+      run: cargo test --lib --features alloc
+    - name: Run tests (STD)
+      run: cargo test --features std
+
+  check-nightly:
+    name: Check and Test (Nightly)
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: "nightly"
+    - name: Cache cargo output
+      uses: Swatinem/rust-cache@v2
+    - name: Check (Core)
+      run: cargo check --features __write_default
+    - name: Check (Alloc)
+      run: cargo check --features alloc,__write_default
+    - name: Check (std)
+      run: cargo check --features std,__write_default
+    - name: Run tests (Core)
+      run: cargo test --lib --features __write_default
+    - name: Run tests (Alloc)
+      run: cargo test --lib --features alloc,__write_default
+    - name: Run tests (STD)
+      run: cargo test --features std,__write_default
+
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: miri
+      - name: Setup miri
+        run: cargo miri setup
+      - name: Run miri
+        run: cargo miri test --test generated_api_tests --features std,__write_default
