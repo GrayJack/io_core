@@ -46,10 +46,11 @@ pub(crate) mod os {
         last_os_error: super::io::errno,
     };
 
-    pub(crate) static OS_FUNCTIONS: AtomicPtr<OsFunctions> = cfg_select! {
-        target_family = "unix" => AtomicPtr::new(UNIX_OS_FUNCTIONS as *const _ as *mut _),
-        _ => AtomicPtr::new(DEFAULT_OS_FUNCTIONS as *const _ as *mut _),
-    };
+    pub(crate) static OS_FUNCTIONS: AtomicPtr<OsFunctions> =
+        cfg_select! {
+            target_family = "unix" => AtomicPtr::new(UNIX_OS_FUNCTIONS as *const _ as *mut _),
+            _ => AtomicPtr::new(DEFAULT_OS_FUNCTIONS as *const _ as *mut _),
+        };
 
     /// Sets the functions used by this crate to have expandable OS handling.
     ///

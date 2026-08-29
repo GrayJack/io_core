@@ -18,22 +18,28 @@ pub const DEFAULT_BUF_SIZE: usize = if cfg!(target_os = "espidf") { 512 } else {
 
 mod io_slice {
     cfg_select! {
-        any(target_family = "unix", target_os = "hermit", target_os = "solid_asp3", target_os = "trusty", target_os = "wasi") => {
+        any(
+            target_family = "unix",
+            target_os = "hermit",
+            target_os = "solid_asp3",
+            target_os = "trusty",
+            target_os = "wasi"
+        ) => {
             mod iovec;
             pub use iovec::*;
-        }
+        },
         target_os = "windows" => {
             mod windows;
             pub use windows::*;
-        }
+        },
         target_os = "uefi" => {
             mod uefi;
             pub use uefi::*;
-        }
+        },
         _ => {
             mod unsupported;
             pub use unsupported::*;
-        }
+        },
     }
 }
 
@@ -42,22 +48,22 @@ mod is_terminal {
         all(any(target_family = "unix", target_os = "wasi"), feature = "std") => {
             mod isatty;
             pub use isatty::*;
-        }
+        },
         all(target_os = "windows", feature = "std") => {
             mod windows;
             pub use windows::*;
-        }
+        },
         all(target_os = "hermit", feature = "std") => {
             mod hermit;
             pub use hermit::*;
-        }
+        },
         all(target_os = "motor", feature = "std") => {
             mod motor;
             pub use motor::*;
-        }
+        },
         _ => {
             mod unsupported;
             pub use unsupported::*;
-        }
+        },
     }
 }

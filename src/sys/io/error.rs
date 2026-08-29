@@ -26,7 +26,7 @@ cfg_select! {
     target_family = "unix" => {
         mod unix;
         pub use unix::*;
-    }
+    },
     // target_os = "wasi" => {
     //     mod wasi;
     //     pub use wasi::*;
@@ -50,7 +50,7 @@ cfg_select! {
     _ => {
         mod generic;
         pub use generic::*;
-    }
+    },
 }
 
 pub type RawOsError = cfg_select! {

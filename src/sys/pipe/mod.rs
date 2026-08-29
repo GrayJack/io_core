@@ -15,6 +15,6 @@ cfg_select! {
     // }
     _ => {
         mod unsupported;
-        pub use unsupported::{Pipe, pipe};
-    }
+        pub use unsupported::{pipe, Pipe};
+    },
 }

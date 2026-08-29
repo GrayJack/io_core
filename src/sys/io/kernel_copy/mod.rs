@@ -11,7 +11,7 @@ cfg_select! {
     //     pub use linux::kernel_copy;
     // }
     _ => {
-        use crate::io::{Result, Read, Write};
+        use crate::io::{Read, Result, Write};
 
         pub fn kernel_copy<R, W>(_reader: &mut R, _writer: &mut W) -> Result<CopyState>
         where
@@ -20,5 +20,5 @@ cfg_select! {
         {
             Ok(CopyState::Fallback(0))
         }
-    }
+    },
 }
