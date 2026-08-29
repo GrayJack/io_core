@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        toolchain: ["1.89.0", "stable"]
+        toolchain: ["1.96.0", "stable"]
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
@@ -85,4 +85,4 @@ jobs:
       - name: Setup miri
         run: cargo miri setup
       - name: Run miri
-        run: cargo miri test --test generated_api_tests --features std,__write_default
+        run: cargo miri test --features std,__write_default
